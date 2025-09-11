@@ -63,7 +63,12 @@ export function Legend({ layers }: LegendProps) {
         <CardContent className="p-2">
           {legendLayers.map(layer => (
             <div key={layer.id} className="mb-2 last:mb-0">
-              <h3 className="font-semibold text-xs mb-1 text-center">{layer.name}</h3>
+              {/* Only show layer name for analysis layers with data */}
+              {getLegendData(layer).length > 0 && (
+                <h3 className="font-semibold text-xs mb-1 text-center">{layer.name}</h3>
+              )}
+              
+              {/* Show legend data for analysis layers */}
               {getLegendData(layer).map(item => (
                 <div key={item.label} className="flex items-center space-x-2">
                   <div
@@ -73,22 +78,24 @@ export function Legend({ layers }: LegendProps) {
                   <span className="text-xs">{item.label}</span>
                 </div>
               ))}
+              
+              {/* Show simple icons for location and territory layers without redundant labels */}
               {layer.type === 'current-locations' && (
                 <div className="flex items-center space-x-2">
                   <Circle className="h-3 w-3 text-green-500 fill-current" />
-                  <span className="text-xs">Current Location</span>
+                  <span className="text-xs">Current Locations</span>
                 </div>
               )}
               {layer.type === 'potential-locations' && (
                 <div className="flex items-center space-x-2">
                   <Circle className="h-3 w-3 text-amber-500 fill-current" />
-                  <span className="text-xs">Potential Location</span>
+                  <span className="text-xs">Potential Locations</span>
                 </div>
               )}
               {layer.type === 'territories' && (
                 <div className="flex items-center space-x-2">
                   <Square className="h-3 w-3 text-blue-500 fill-current opacity-50" />
-                  <span className="text-xs">Territory</span>
+                  <span className="text-xs">Territories</span>
                 </div>
               )}
             </div>
