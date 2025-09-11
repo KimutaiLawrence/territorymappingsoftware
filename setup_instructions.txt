@@ -1,0 +1,46 @@
+TERRITORY MAPPER FRONTEND SETUP INSTRUCTIONS FOR CLAUDE CODE
+
+Please execute these commands in order to create a modern Next.js territory mapping application:
+
+1. FIRST - Initialize Next.js project:
+npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias "@/*" --yes
+
+2. Install additional dependencies:
+npm install @radix-ui/react-slot class-variance-authority clsx tailwind-merge lucide-react
+npm install maplibre-gl @types/maplibre-gl
+npm install axios
+npm install @tanstack/react-query
+npm install react-hook-form @hookform/resolvers zod
+
+3. Install shadcn/ui:
+npx shadcn@latest init --yes
+npx shadcn@latest add button card input label form dialog sheet sidebar navigation-menu tabs select checkbox switch slider textarea badge alert-dialog dropdown-menu
+
+4. Create the project structure:
+mkdir src/components/ui
+mkdir src/components/map
+mkdir src/components/auth
+mkdir src/components/layout
+mkdir src/hooks
+mkdir src/lib
+mkdir src/types
+mkdir src/contexts
+
+5. Create environment variables file:
+echo "NEXT_PUBLIC_API_URL=https://territorymapperbackend.onrender.com" > .env.local
+
+6. Fetch and analyze the original HTML file:
+Use WebFetch to get content from: https://territory-mapper-gis.netlify.app/gis-mapping-tool.html
+
+7. Extract MapLibre functionality and convert to React components
+
+8. Create authentication system with JWT token management
+
+9. Build map interface with territory mapping tools
+
+10. Integrate with backend API endpoints
+
+The goal is to create a modern, responsive territory mapping application that replaces the monolithic HTML file with a proper React/Next.js architecture while maintaining all the original functionality and improving the UI/UX with shadcn components.
+
+Backend API is live at: https://territorymapperbackend.onrender.com/
+Working credentials: testuser_b8cdd458@example.com / TestPassword123!

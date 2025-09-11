@@ -1,0 +1,3 @@
+Copy and paste this to Claude Code:
+
+"Please read the setup_instructions.txt file and TERRITORY_MAPPER_INSTRUCTIONS.md file, then create a complete Next.js 15 territory mapping application. Start by running the npx create-next-app command to initialize the project, then follow all the setup steps. The goal is to replicate the functionality from https://territory-mapper-gis.netlify.app/gis-mapping-tool.html but as a modern React application with shadcn/ui components and integration with the backend API at https://territorymapperbackend.onrender.com/"
