@@ -82,11 +82,13 @@ export function MapControls({
                   checked={layer.visible}
                   onCheckedChange={() => onLayerToggle(layer.id)}
                 />
-                <span>{layer.name}</span>
+                <span>
+                  {layer.name}
+                  <span className="text-sm text-muted-foreground ml-1">
+                    (Total: {layer.data?.features?.length || 0})
+                  </span>
+                </span>
               </Label>
-              <span className="text-sm text-muted-foreground">
-                {layer.data?.features?.length || 0}
-              </span>
             </div>
             {layer.visible && (
               <div className="flex items-center space-x-2 pl-8">

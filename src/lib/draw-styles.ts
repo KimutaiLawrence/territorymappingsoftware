@@ -1,4 +1,43 @@
 export const drawStyles = [
+  // SELECTED FEATURES (highlighted for editing)
+  // Selected polygon fill
+  {
+    id: 'gl-draw-polygon-fill-selected',
+    type: 'fill',
+    filter: ['all', ['==', '$type', 'Polygon'], ['==', 'selected', 'true']],
+    paint: {
+      'fill-color': '#ff6b6b',
+      'fill-outline-color': '#ff6b6b',
+      'fill-opacity': 0.3,
+    },
+  },
+  // Selected polygon stroke
+  {
+    id: 'gl-draw-polygon-stroke-selected',
+    type: 'line',
+    filter: ['all', ['==', '$type', 'Polygon'], ['==', 'selected', 'true']],
+    layout: {
+      'line-cap': 'round',
+      'line-join': 'round',
+    },
+    paint: {
+      'line-color': '#ff6b6b',
+      'line-width': 4,
+    },
+  },
+  // Selected point
+  {
+    id: 'gl-draw-point-selected',
+    type: 'circle',
+    filter: ['all', ['==', '$type', 'Point'], ['==', 'selected', 'true']],
+    paint: {
+      'circle-radius': 8,
+      'circle-color': '#ff6b6b',
+      'circle-stroke-width': 2,
+      'circle-stroke-color': '#ffffff',
+    },
+  },
+
   // ACTIVE (being drawn)
   // line stroke
   {
@@ -27,7 +66,7 @@ export const drawStyles = [
     },
   },
   // polygon mid-points
-    {
+  {
     id: 'gl-draw-polygon-midpoint',
     type: 'circle',
     filter: ['all',
@@ -64,7 +103,7 @@ export const drawStyles = [
       ['!=', 'mode', 'static'],
     ],
     paint: {
-      'circle-radius': 5,
+      'circle-radius': 6,
       'circle-color': '#FFF',
     },
   },
@@ -79,7 +118,7 @@ export const drawStyles = [
       ['!=', 'mode', 'static'],
     ],
     paint: {
-      'circle-radius': 3,
+      'circle-radius': 4,
       'circle-color': '#D20C0C',
     },
   },

@@ -24,6 +24,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Location } from '@/types'
+import { toast } from 'sonner'
 
 const locationSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -94,6 +95,7 @@ export function LocationFormModal({
       status: location?.properties?.status || '',
       latitude: location?.geom?.coordinates[1] || 37.0902,
       longitude: location?.geom?.coordinates[0] || -95.7129,
+      type: location?.properties?.locationType || locationType,
       // Demographics
       asian_non_hispanic: location?.properties?.demographics?.asian_non_hispanic,
       black_non_hispanic: location?.properties?.demographics?.black_non_hispanic,
@@ -118,15 +120,20 @@ export function LocationFormModal({
   })
 
   React.useEffect(() => {
+    console.log('Location prop in modal:', location)
     if (location) {
+      const isNewFeature = 'geometry' in location && !location.properties?.id;
+      const coords = location.geom?.coordinates || (location as any).geometry?.coordinates;
+      
       reset({
-        name: location.name,
-        address: location.properties?.address,
-        city: location.properties?.city,
-        state_code: location.properties?.state_code,
-        status: location.properties?.status,
-        latitude: location.geom?.coordinates[1],
-        longitude: location.geom?.coordinates[0],
+        name: location.name || '',
+        address: location.properties?.address || '',
+        city: location.properties?.city || '',
+        state_code: location.properties?.state_code || '',
+        status: location.properties?.status || '',
+        latitude: coords ? coords[1] : 37.0902,
+        longitude: coords ? coords[0] : -95.7129,
+        type: location.properties?.locationType || locationType,
         // Demographics
         asian_non_hispanic: location.properties?.demographics?.asian_non_hispanic,
         black_non_hispanic: location.properties?.demographics?.black_non_hispanic,
@@ -157,14 +164,20 @@ export function LocationFormModal({
         status: '',
         latitude: 37.0902,
         longitude: -95.7129,
+        type: locationType,
       })
     }
-  }, [location, reset])
+  }, [location, reset, locationType])
 
   const handleLocationSelect = ({ lat, lng }: { lat: number; lng: number }) => {
     setValue('latitude', lat)
     setValue('longitude', lng)
   }
+
+  const onInvalid = (errors: any) => {
+    const errorMessages = Object.values(errors).map((error: any) => error.message);
+    toast.error(`Please fix the following errors:\n- ${errorMessages.join('\n- ')}`);
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -172,7 +185,7 @@ export function LocationFormModal({
         <DialogHeader>
           <DialogTitle>{location ? 'Edit Location' : 'Create Location'}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit(onSubmit, onInvalid)}>
             <Tabs defaultValue="general">
                 <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="general">General</TabsTrigger>
@@ -187,6 +200,24 @@ export function LocationFormModal({
                             <Label htmlFor="name">Name</Label>
                             <Input id="name" {...register('name')} />
                             {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="locationType">Location Type</Label>
+                            <Controller
+                                control={control}
+                                name="type"
+                                render={({ field }) => (
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <SelectTrigger>
+                                    <SelectValue placeholder="Select a type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="current">Current</SelectItem>
+                                        <SelectItem value="potential">Potential</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                )}
+                            />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="status">Status</Label>

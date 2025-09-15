@@ -11,7 +11,7 @@
 1. **Environment Variables**
    Set the following environment variable in Vercel:
    ```
-   NEXT_PUBLIC_API_URL=https://territorymapperbackend.onrender.com
+   NEXT_PUBLIC_API_URL=http://localhost:5000
    ```
 
 2. **Build Settings**
@@ -41,13 +41,14 @@ npm run start
 
 The application uses the following environment variables:
 
-- `NEXT_PUBLIC_API_URL`: Backend API URL (default: https://territorymapperbackend.onrender.com)
+- `NEXT_PUBLIC_API_URL`: Backend API URL (default: http://localhost:5000)
 
 ## Backend Integration
 
 The frontend is configured to communicate with the backend API at:
+- **Development**: http://localhost:5000
 - **Production**: https://territorymapperbackend.onrender.com
-- **API Documentation**: https://territorymapperbackend.onrender.com/docs
+- **API Documentation**: http://localhost:5000/docs (development) or https://territorymapperbackend.onrender.com/docs (production)
 
 ## Troubleshooting
 

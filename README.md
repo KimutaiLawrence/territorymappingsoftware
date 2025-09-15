@@ -59,7 +59,7 @@ npm run dev
 Create a `.env.local` file in the frontend directory:
 
 ```env
-NEXT_PUBLIC_API_URL=https://territorymapperbackend.onrender.com
+NEXT_PUBLIC_API_URL=http://localhost:5000
 ```
 
 ## Available Scripts

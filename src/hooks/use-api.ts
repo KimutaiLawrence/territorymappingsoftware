@@ -25,6 +25,7 @@ export function useCreateTerritory() {
             api.post('/api/territories/', territoryData),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['territories'] })
+            queryClient.invalidateQueries({ queryKey: ['map-territories'] })
         },
     })
 }
@@ -34,8 +35,10 @@ export function useUpdateTerritory() {
     return useMutation({
         mutationFn: ({ id, data }: { id: string; data: Partial<Territory> }) => 
             api.put(`/api/territories/${id}`, data),
-        onSuccess: () => {
+        onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['territories'] })
+            queryClient.invalidateQueries({ queryKey: ['map-territories'] })
+            queryClient.invalidateQueries({ queryKey: ['territory', variables.id] })
         },
     })
 }
@@ -46,6 +49,7 @@ export function useDeleteTerritory() {
         mutationFn: (id: string) => api.delete(`/api/territories/${id}`),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['territories'] })
+            queryClient.invalidateQueries({ queryKey: ['map-territories'] })
         },
     })
 }
@@ -90,6 +94,8 @@ export function useCreateLocation() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['current-locations'] })
             queryClient.invalidateQueries({ queryKey: ['potential-locations'] })
+            queryClient.invalidateQueries({ queryKey: ['map-current-locations'] })
+            queryClient.invalidateQueries({ queryKey: ['map-potential-locations'] })
         },
     })
 }
@@ -109,6 +115,8 @@ export function useUpdateLocation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['current-locations'] })
       queryClient.invalidateQueries({ queryKey: ['potential-locations'] })
+      queryClient.invalidateQueries({ queryKey: ['map-current-locations'] })
+      queryClient.invalidateQueries({ queryKey: ['map-potential-locations'] })
     },
   })
 }
@@ -202,7 +210,10 @@ export function useMapTerritories() {
       const response = await api.get('/api/territories/?format=geojson&per_page=1000')
       return response.data || { type: 'FeatureCollection', features: [] }
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60, // 1 minute
+    cacheTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   })
 }
 
@@ -213,7 +224,10 @@ export function useMapCurrentLocations() {
       const response = await api.get('/api/current-locations/?format=geojson&per_page=1000')
       return response.data || { type: 'FeatureCollection', features: [] }
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60, // 1 minute
+    cacheTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   })
 }
 
@@ -224,7 +238,10 @@ export function useMapPotentialLocations() {
       const response = await api.get('/api/potential-locations/?format=geojson&per_page=1000')
       return response.data || { type: 'FeatureCollection', features: [] }
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60, // 1 minute
+    cacheTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   })
 }
 
