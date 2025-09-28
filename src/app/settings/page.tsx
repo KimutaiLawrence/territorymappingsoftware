@@ -36,9 +36,10 @@ import { usePagination } from '@/hooks/use-pagination'
 import { DataTable } from '@/components/common/data-table'
 import { ColumnDef } from '@tanstack/react-table'
 import { useRBAC } from '@/hooks/use-rbac'
+import { useMemo } from 'react'
 
 export default function SettingsPage() {
-  const { user } = useAuth()
+  const { user: currentUser } = useAuth()
   const { can } = useRBAC()
   const { pagination, setPagination } = usePagination()
   const { data: usersData, isLoading } = useUsers(pagination)
@@ -48,6 +49,19 @@ export default function SettingsPage() {
 
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | undefined>(undefined)
+
+  const filteredUsers = useMemo(() => {
+    if (!usersData?.users) return []
+    if (currentUser?.is_superadmin) {
+      return usersData.users
+    }
+    // For non-superadmins, show users from their org, and never show superadmins
+    return usersData.users.filter(
+      (user) => 
+        user.organization?.id === currentUser?.organization?.id &&
+        user.role.name !== 'superadmin'
+    )
+  }, [usersData, currentUser])
 
   const handleAddUser = () => {
     setSelectedUser(undefined)
@@ -66,10 +80,32 @@ export default function SettingsPage() {
   }
 
   const handleFormSubmit = async (data: any) => {
+    const payload = { ...data };
+
+    // Do not include password fields in the payload if they are empty
+    if (!payload.password) {
+      delete payload.password;
+      delete payload.confirm_password;
+    }
+    
+    // Handle 'none' value for organization_id from the form
+    if (payload.organization_id === 'none') {
+      payload.organization_id = null
+    }
+
+    // When an admin creates a user, automatically assign them to their own organization
+    if (
+      !selectedUser && // only on create
+      currentUser &&
+      !currentUser.is_superadmin
+    ) {
+      payload.organization_id = currentUser.organization?.id
+    }
+
     if (selectedUser) {
-      await updateUser.mutateAsync({ id: selectedUser.id, data })
+      await updateUser.mutateAsync({ id: selectedUser.id, data: payload })
     } else {
-      await createUser.mutateAsync(data)
+      await createUser.mutateAsync(payload)
     }
     setIsFormOpen(false)
   }
@@ -122,7 +158,7 @@ export default function SettingsPage() {
   ]
   
   return (
-    <ProtectedRoute allowedRoles={['admin']}>
+    <ProtectedRoute allowedRoles={['admin', 'superadmin']}>
       <DashboardLayout>
         <div className="h-full flex flex-col p-4 space-y-4">
           <div className="flex justify-between items-center shrink-0">
@@ -146,7 +182,7 @@ export default function SettingsPage() {
               ) : (
                 <DataTable
                   columns={columns}
-                  data={usersData?.users || []}
+                  data={filteredUsers}
                   pageCount={usersData?.pagination.pages || 0}
                   pagination={pagination}
                   setPagination={setPagination}

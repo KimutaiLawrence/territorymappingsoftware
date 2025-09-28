@@ -20,6 +20,8 @@ import {
   LayoutDashboard,
   Target,
   Globe2,
+  Building,
+  UploadCloud,
 } from 'lucide-react'
 import {
   Sheet,
@@ -49,8 +51,24 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: 'Current Locations', href: '/locations', icon: MapPin, color: 'text-green-500' },
     { name: 'Potential Locations', href: '/potential-locations', icon: Target, color: 'text-orange-500' },
     { name: 'Datasets', href: '/datasets', icon: Database },
+  ]
+
+  const adminNavigation = [
     { name: 'Settings', href: '/settings', icon: Settings },
   ]
+
+  if (user?.is_superadmin) {
+    adminNavigation.unshift({
+      name: 'Organizations',
+      href: '/organizations',
+      icon: Building,
+    },
+    {
+      name: 'Data Import',
+      href: '/data-import',
+      icon: UploadCloud,
+    })
+  }
 
   return (
     <div className="flex flex-col h-screen bg-background">
@@ -109,8 +127,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             {user && (
               <>
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm text-muted-foreground">
-                    {user.first_name} {user.last_name}
+                  <span className="text-sm font-semibold text-foreground">
+                    {user.organization?.name || (user.is_superadmin ? 'Superadmin' : user.full_name)}
                   </span>
                   <Badge variant="secondary">{user.role.name}</Badge>
                 </div>
@@ -137,19 +155,36 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             isSidebarCollapsed ? 'w-16' : 'w-64'
           )}
         >
-          <nav className="space-y-2 p-4">
-            {navigation.map(item => (
-              <Button
-                key={item.name}
-                variant="ghost"
-                className="w-full justify-start"
-                onClick={() => router.push(item.href)}
-                title={item.name}
-              >
-                <item.icon className={cn('mr-2 h-4 w-4', item.color)} />
-                {!isSidebarCollapsed && <span>{item.name}</span>}
-              </Button>
-            ))}
+          <nav className="flex flex-col h-full justify-between p-4">
+            <div className="space-y-2">
+              {navigation.map((item) => (
+                <Button
+                  key={item.name}
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={() => router.push(item.href)}
+                  title={item.name}
+                >
+                  <item.icon className={cn('mr-2 h-4 w-4', item.color)} />
+                  {!isSidebarCollapsed && <span>{item.name}</span>}
+                </Button>
+              ))}
+            </div>
+            <div className="space-y-2">
+              <Separator />
+              {adminNavigation.map((item) => (
+                <Button
+                  key={item.name}
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={() => router.push(item.href)}
+                  title={item.name}
+                >
+                  <item.icon className="mr-2 h-4 w-4" />
+                  {!isSidebarCollapsed && <span>{item.name}</span>}
+                </Button>
+              ))}
+            </div>
           </nav>
         </aside>
 

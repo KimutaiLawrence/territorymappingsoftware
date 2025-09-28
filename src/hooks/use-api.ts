@@ -2,8 +2,130 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
-import { Territory, Location, Dataset, User, Role } from '@/types'
+import { Territory, Location, Dataset, User, Role, Organization } from '@/types'
 import { PaginationState } from '@tanstack/react-table'
+
+// Define the Country type
+interface Country {
+  code: string;
+  name: string;
+}
+
+// Organizations
+export function useOrganizations(pagination: PaginationState) {
+  return useQuery({
+    queryKey: ['organizations', pagination],
+    queryFn: async () => {
+      const response = await api.get<{ organizations: Organization[], pagination: any }>(
+        `/api/organizations/?page=${pagination.pageIndex + 1}&per_page=${pagination.pageSize}`
+      )
+      return response.data
+    },
+  })
+}
+
+export function useCreateOrganization() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (orgData: Partial<Organization>) => api.post('/api/organizations/', orgData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizations'] })
+    },
+  })
+}
+
+export function useUpdateOrganization() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<Organization> }) =>
+      api.put(`/api/organizations/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizations'] })
+    },
+  })
+}
+
+export function useDeleteOrganization() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/api/organizations/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizations'] })
+    },
+  })
+}
+
+// GIS Data Ingestion
+export function useIngestAdminBoundaries() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { country_code: string; organization_id: string }) =>
+      api.post('/api/gisdata/ingest/administrative', data),
+    onSuccess: () => {
+      // Invalidate any queries that might show this data, e.g., a map layer query
+      queryClient.invalidateQueries({ queryKey: ['map-admin-boundaries'] })
+    },
+  })
+}
+
+export function useMapAdminBoundaries() {
+  return useQuery({
+    queryKey: ['map-admin-boundaries'],
+    queryFn: async () => {
+      const response = await api.get('/api/gisdata/administrative?format=geojson&per_page=20')
+      return response.data || { type: 'FeatureCollection', features: [] }
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+}
+
+// Customer Locations
+export function useMapCustomerLocations() {
+  return useQuery({
+    queryKey: ['map-customer-locations'],
+    queryFn: async () => {
+      const response = await api.get('/api/gisdata/customer-locations?format=geojson&per_page=20')
+      return response.data || { type: 'FeatureCollection', features: [] }
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+}
+
+// Clustered Customer Locations for better performance
+export function useMapClusteredCustomerLocations(zoom: number = 10) {
+  return useQuery({
+    queryKey: ['map-clustered-customer-locations', zoom],
+    queryFn: async () => {
+      const response = await api.get(`/api/gisdata/customer-locations/clustered?format=geojson&zoom=${zoom}`)
+      return response.data || { type: 'FeatureCollection', features: [] }
+    },
+    staleTime: 1000 * 60 * 2, // 2 minutes (shorter for clustering)
+  })
+}
+
+// All Organizations (for dropdowns)
+export function useAllOrganizations() {
+  return useQuery({
+    queryKey: ['all-organizations'],
+    queryFn: async () => {
+      const response = await api.get<{ organizations: Organization[], pagination: any }>(
+        `/api/organizations/?page=1&per_page=1000`
+      )
+      return response.data
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+}
+
+export const useAvailableCountries = () => {
+  return useQuery<{ countries: Country[] }>({
+    queryKey: ['available-countries'],
+    queryFn: async () => {
+      const response = await api.get('/api/gisdata/available-countries');
+      return response.data;
+    },
+  });
+};
 
 // Territories
 export function useTerritories(pagination: PaginationState) {

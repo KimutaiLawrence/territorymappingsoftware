@@ -14,6 +14,19 @@ export interface User {
   created_at: string
   updated_at: string
   is_active: boolean
+  organization?: {
+    id: string
+    name: string
+  }
+  is_superadmin: boolean
+}
+
+export interface Organization {
+  id: string
+  name: string
+  description: string
+  created_at: string
+  updated_at: string
 }
 
 export interface LoginCredentials {
@@ -81,6 +94,8 @@ export interface MapLayer {
     | 'us-states'
     | 'rivers'
     | 'roads'
+    | 'admin-boundaries'
+    | 'customer-locations'
     | 'population-analysis'
     | 'custom'
     | 'expansion-analysis'
