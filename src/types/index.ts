@@ -103,6 +103,7 @@ export interface MapLayer {
   data: FeatureCollection
   style?: any
   opacity: number
+  color?: string
 }
 
 export interface Basemap {

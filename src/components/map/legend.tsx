@@ -43,12 +43,14 @@ export function Legend({ layers }: LegendProps) {
           l.visible &&
           (l.type.includes('analysis') ||
             l.type.includes('location') ||
-            l.type === 'territories')
+            l.type === 'territories' ||
+            l.type === 'customer-locations' ||
+            l.type === 'admin-boundaries')
       )
     )
   }, [layers])
 
-  const legendLayers = visibleLayers.filter(l => getLegendData(l).length > 0 || l.type.includes('location') || l.type === 'territories')
+  const legendLayers = visibleLayers.filter(l => getLegendData(l).length > 0 || l.type.includes('location') || l.type === 'territories' || l.type === 'customer-locations' || l.type === 'admin-boundaries')
 
   if (legendLayers.length === 0) {
     return null
@@ -93,9 +95,43 @@ export function Legend({ layers }: LegendProps) {
                 </div>
               )}
               {layer.type === 'territories' && (
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <Square className="h-3 w-3 text-blue-500 fill-current opacity-50" />
+                    <span className="text-xs font-medium">Territories</span>
+                  </div>
+                  {/* Show individual territories if available */}
+                  {layer.data?.features?.map((feature: any, index: number) => (
+                    <div key={feature.id || index} className="flex items-center space-x-2 ml-4">
+                      <div
+                        className="w-3 h-3 rounded border"
+                        style={{ 
+                          backgroundColor: feature.properties?.color || '#3b82f6',
+                          opacity: feature.properties?.opacity || 0.7
+                        }}
+                      />
+                      <span className="text-xs">
+                        {feature.properties?.name || `Territory ${index + 1}`}
+                        {feature.properties?.customer_count && (
+                          <span className="text-gray-500 ml-1">
+                            ({feature.properties.customer_count})
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {layer.type === 'customer-locations' && (
                 <div className="flex items-center space-x-2">
-                  <Square className="h-3 w-3 text-blue-500 fill-current opacity-50" />
-                  <span className="text-xs">Territories</span>
+                  <Circle className="h-3 w-3 text-red-500 fill-current" />
+                  <span className="text-xs">Customer Locations</span>
+                </div>
+              )}
+              {layer.type === 'admin-boundaries' && (
+                <div className="flex items-center space-x-2">
+                  <Square className="h-3 w-3 text-blue-500 fill-current opacity-30" />
+                  <span className="text-xs">Administrative Boundaries</span>
                 </div>
               )}
             </div>

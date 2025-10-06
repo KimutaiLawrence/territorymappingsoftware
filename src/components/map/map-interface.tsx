@@ -5,6 +5,7 @@ import maplibregl from 'maplibre-gl'
 import { MapContainer } from './map-container'
 import { MapControls } from './map-controls'
 import { TerritoryGenerator } from './territory-generator'
+import { JeddahTerritoryGenerator } from './jeddah-territory-generator'
 import { Territory, Location, MapLayer, Basemap, DrawingTool } from '@/types'
 import {
   useUSStates,
@@ -36,11 +37,58 @@ import { HorizontalToolbar } from './horizontal-toolbar'
 import { TerritoryFormModal } from '../territories/territory-form-modal'
 import { LocationFormModal } from '../locations/location-form-modal'
 import { useCreateTerritory, useUpdateTerritory, useCreateLocation, useUpdateLocation, useDeleteTerritory } from '@/hooks/use-api'
+import { 
+  useOrganizationCreateTerritory, 
+  useOrganizationUpdateTerritory, 
+  useOrganizationCreateLocation, 
+  useOrganizationUpdateLocation, 
+  useOrganizationDeleteTerritory,
+  useOrganizationDeleteLocation 
+} from '@/hooks/use-organization-api'
+import { useLayerOpacitySettings } from '@/hooks/use-layer-opacity'
+import { toast } from 'sonner'
 import { PrintComposer } from './print-composer'
 import { exportMapAsPDF } from '@/lib/pdf-export'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQueryClient, useQuery } from '@tanstack/react-query'
 import { ProgressIndicator } from '@/components/ui/progress-indicator'
 import { useAuth } from '@/contexts/auth-context'
+import api from '@/lib/api'
+
+// Utility function to calculate bounding box from features
+const calculateBounds = (features: any[]) => {
+  if (!features || features.length === 0) return null
+  
+  const coordinates = features
+    .filter(f => f.geometry?.type === 'Point' && f.geometry.coordinates)
+    .map(f => f.geometry.coordinates)
+  
+  if (coordinates.length === 0) return null
+  
+  const lngs = coordinates.map(coord => coord[0])
+  const lats = coordinates.map(coord => coord[1])
+  
+  return [
+    [Math.min(...lngs), Math.min(...lats)], // Southwest
+    [Math.max(...lngs), Math.max(...lats)]  // Northeast
+  ] as [[number, number], [number, number]]
+}
+
+// Utility function to filter admin boundaries for Jeddah region
+const filterAdminBoundariesForJeddah = (boundaries: any) => {
+  if (!boundaries || !boundaries.features) return boundaries
+  
+  // Filter to show only Makkah region (which contains Jeddah)
+  const jeddahFeatures = boundaries.features.filter((feature: any) => {
+    const props = feature.properties || {}
+    const name = props.name || props.NAME || ''
+    return name.toLowerCase().includes('makkah')
+  })
+  
+  return {
+    ...boundaries,
+    features: jeddahFeatures
+  }
+}
 
 
 const googleHybridStyle: maplibregl.StyleSpecification = {
@@ -301,13 +349,17 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
   const [newPointFeature, setNewPointFeature] = useState<Feature<Point> | null>(null)
   const [locationDrawType, setLocationDrawType] = useState<'current' | 'potential'>('current')
   const [mapZoom, setMapZoom] = useState<number>(10)
+  const [showAllAdminBoundaries, setShowAllAdminBoundaries] = useState<boolean>(false)
 
   const queryClient = useQueryClient()
-  const createTerritoryMutation = useCreateTerritory()
-  const updateTerritoryMutation = useUpdateTerritory()
-  const createLocationMutation = useCreateLocation()
-  const updateLocationMutation = useUpdateLocation()
-  const deleteTerritoryMutation = useDeleteTerritory()
+  
+  // Use organization-aware hooks
+  const createTerritoryMutation = useOrganizationCreateTerritory()
+  const updateTerritoryMutation = useOrganizationUpdateTerritory()
+  const createLocationMutation = useOrganizationCreateLocation()
+  const updateLocationMutation = useOrganizationUpdateLocation()
+  const deleteTerritoryMutation = useOrganizationDeleteTerritory()
+  const deleteLocationMutation = useOrganizationDeleteLocation()
 
   const {
     data: territoriesData,
@@ -523,48 +575,117 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
 
   const { data: usStates, isLoading: usStatesLoading } = useUSStates()
   const { data: rivers, isLoading: riversLoading } = useRivers()
-  const { data: roads, isLoading: roadsLoading } = useRoads()
-  const { data: adminBoundaries, isLoading: adminBoundariesLoading } = useMapAdminBoundaries()
+  const { data: roads, isLoading: roadsLoading } = useMapAdminBoundaries()
   
-  // Use regular customer locations for now (clustering might be causing issues)
-  const { data: customerLocations, isLoading: customerLocationsLoading } = useMapCustomerLocations()
+  // Organization-specific data loading
+  const userOrg = user?.organization?.name?.toLowerCase()
+  
+  // For Jeddah users, use fast-data endpoint
+  const { data: jeddahFastData, isLoading: jeddahFastDataLoading } = useQuery({
+    queryKey: ['jeddah-fast-data'],
+    queryFn: async () => {
+      const response = await api.get('/api/jeddah/fast-data')
+      console.log('Jeddah fast data response:', response.data)
+      return response.data
+    },
+    enabled: userOrg === 'jeddah',
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+
+  // Load layer opacity settings
+  const { data: layerOpacitySettings, isLoading: layerOpacityLoading, error: layerOpacityError } = useLayerOpacitySettings()
+  
+  // Debug layer opacity settings
+  console.log('🔧 Layer opacity settings:', { layerOpacitySettings, layerOpacityLoading, layerOpacityError })
+  
+  // For other users, use regular endpoints (only if not Jeddah)
+  const { data: adminBoundaries, isLoading: adminBoundariesLoading } = useQuery({
+    queryKey: ['map-admin-boundaries'],
+    queryFn: async () => {
+      const response = await api.get('/api/gisdata/administrative?format=geojson&per_page=20')
+      return response.data || { type: 'FeatureCollection', features: [] }
+    },
+    enabled: userOrg !== 'jeddah',
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+  
+  const { data: customerLocations, isLoading: customerLocationsLoading } = useQuery({
+    queryKey: ['map-customer-locations'],
+    queryFn: async () => {
+      const response = await api.get('/api/gisdata/customer-locations?format=geojson&per_page=20')
+      return response.data || { type: 'FeatureCollection', features: [] }
+    },
+    enabled: userOrg !== 'jeddah',
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
 
   // Organization-specific layer configuration
   const layersConfig = useMemo(() => {
     const userOrg = user?.organization?.name?.toLowerCase()
     
+    // Helper function to get opacity from saved settings or use default
+    const getOpacity = (layerId: string, defaultOpacity: number) => {
+      console.log(`🔧 Getting opacity for ${layerId}:`, {
+        layerOpacitySettings,
+        hasSettings: !!layerOpacitySettings,
+        hasLayerSetting: !!(layerOpacitySettings && layerOpacitySettings[layerId]),
+        layerSetting: layerOpacitySettings?.[layerId],
+        defaultOpacity
+      })
+      
+      if (layerOpacitySettings && layerOpacitySettings[layerId]) {
+        const savedOpacity = layerOpacitySettings[layerId].opacity
+        console.log(`✅ Using saved opacity for ${layerId}: ${savedOpacity}`)
+        return savedOpacity
+      }
+      console.log(`📝 Using default opacity for ${layerId}: ${defaultOpacity}`)
+      return defaultOpacity
+    }
+
+    // Helper function to get color from saved settings or use default
+    const getColor = (layerId: string, defaultColor: string) => {
+      if (layerOpacitySettings && layerOpacitySettings[layerId]?.color) {
+        const savedColor = layerOpacitySettings[layerId].color
+        console.log(`✅ Using saved color for ${layerId}: ${savedColor}`)
+        return savedColor
+      }
+      console.log(`📝 Using default color for ${layerId}: ${defaultColor}`)
+      return defaultColor
+    }
+    
     if (userOrg === 'jeddah') {
       // Jeddah organization - show only Saudi Arabia data
       return [
-        { id: 'admin-boundaries', name: 'Administrative Boundaries', type: 'admin-boundaries', visible: true, opacity: 0.1 },
-        { id: 'customer-locations', name: 'Customer Locations', type: 'customer-locations', visible: true, opacity: 1 },
+        { id: 'territories', name: 'Territories', type: 'territories', visible: true, opacity: getOpacity('territories', 0.5), color: getColor('territories', '#3b82f6') },
+        { id: 'admin-boundaries', name: 'Administrative Boundaries', type: 'admin-boundaries', visible: true, opacity: getOpacity('admin-boundaries', 0.1), color: getColor('admin-boundaries', '#3b82f6') },
+        { id: 'customer-locations', name: 'Customer Locations', type: 'customer-locations', visible: true, opacity: getOpacity('customer-locations', 1), color: getColor('customer-locations', '#ef4444') },
       ]
     } else if (userOrg === 'hooptrailer') {
       // Hooptrailer organization - show only US data
       return [
-        { id: 'territories', name: 'Territories', type: 'territories', visible: true, opacity: 0.5 },
-        { id: 'current-locations', name: 'Current Locations', type: 'current-locations', visible: true, opacity: 1 },
-        { id: 'potential-locations', name: 'Potential Locations', type: 'potential-locations', visible: true, opacity: 1 },
-        { id: 'us-states', name: 'US States', type: 'us-states', visible: true, opacity: 0.2 },
-        { id: 'rivers', name: 'Rivers', type: 'rivers', visible: false, opacity: 1 },
-        { id: 'population-analysis', name: 'Population Analysis', type: 'population-analysis', visible: false, opacity: 0.7 },
-        { id: 'expansion-analysis', name: 'Expansion Analysis', type: 'expansion-analysis', visible: false, opacity: 0.7 },
+        { id: 'territories', name: 'Territories', type: 'territories', visible: true, opacity: getOpacity('territories', 0.5), color: getColor('territories', '#3b82f6') },
+        { id: 'current-locations', name: 'Current Locations', type: 'current-locations', visible: true, opacity: getOpacity('current-locations', 1), color: getColor('current-locations', '#22c55e') },
+        { id: 'potential-locations', name: 'Potential Locations', type: 'potential-locations', visible: true, opacity: getOpacity('potential-locations', 1), color: getColor('potential-locations', '#f59e0b') },
+        { id: 'us-states', name: 'US States', type: 'us-states', visible: true, opacity: getOpacity('us-states', 0.2), color: getColor('us-states', '#8b5cf6') },
+        { id: 'rivers', name: 'Rivers', type: 'rivers', visible: false, opacity: getOpacity('rivers', 1), color: getColor('rivers', '#06b6d4') },
+        { id: 'population-analysis', name: 'Population Analysis', type: 'population-analysis', visible: false, opacity: getOpacity('population-analysis', 0.7), color: getColor('population-analysis', '#ec4899') },
+        { id: 'expansion-analysis', name: 'Expansion Analysis', type: 'expansion-analysis', visible: false, opacity: getOpacity('expansion-analysis', 0.7), color: getColor('expansion-analysis', '#f43f5e') },
       ]
     } else {
       // Superadmin or unknown - show all layers
       return [
-        { id: 'territories', name: 'Territories', type: 'territories', visible: true, opacity: 0.5 },
-        { id: 'current-locations', name: 'Current Locations', type: 'current-locations', visible: true, opacity: 1 },
-        { id: 'potential-locations', name: 'Potential Locations', type: 'potential-locations', visible: true, opacity: 1 },
-        { id: 'us-states', name: 'US States', type: 'us-states', visible: true, opacity: 0.2 },
-        { id: 'admin-boundaries', name: 'Administrative Boundaries', type: 'admin-boundaries', visible: true, opacity: 0.6 },
-        { id: 'customer-locations', name: 'Customer Locations', type: 'customer-locations', visible: true, opacity: 1 },
-        { id: 'population-analysis', name: 'Population Analysis', type: 'population-analysis', visible: false, opacity: 0.7 },
-        { id: 'expansion-analysis', name: 'Expansion Analysis', type: 'expansion-analysis', visible: false, opacity: 0.7 },
-        { id: 'rivers', name: 'Rivers', type: 'rivers', visible: false, opacity: 1 },
+        { id: 'territories', name: 'Territories', type: 'territories', visible: true, opacity: getOpacity('territories', 0.5), color: getColor('territories', '#3b82f6') },
+        { id: 'current-locations', name: 'Current Locations', type: 'current-locations', visible: true, opacity: getOpacity('current-locations', 1), color: getColor('current-locations', '#22c55e') },
+        { id: 'potential-locations', name: 'Potential Locations', type: 'potential-locations', visible: true, opacity: getOpacity('potential-locations', 1), color: getColor('potential-locations', '#f59e0b') },
+        { id: 'us-states', name: 'US States', type: 'us-states', visible: true, opacity: getOpacity('us-states', 0.2), color: getColor('us-states', '#8b5cf6') },
+        { id: 'admin-boundaries', name: 'Administrative Boundaries', type: 'admin-boundaries', visible: true, opacity: getOpacity('admin-boundaries', 0.6), color: getColor('admin-boundaries', '#3b82f6') },
+        { id: 'customer-locations', name: 'Customer Locations', type: 'customer-locations', visible: true, opacity: getOpacity('customer-locations', 1), color: getColor('customer-locations', '#ef4444') },
+        { id: 'population-analysis', name: 'Population Analysis', type: 'population-analysis', visible: false, opacity: getOpacity('population-analysis', 0.7), color: getColor('population-analysis', '#ec4899') },
+        { id: 'expansion-analysis', name: 'Expansion Analysis', type: 'expansion-analysis', visible: false, opacity: getOpacity('expansion-analysis', 0.7), color: getColor('expansion-analysis', '#f43f5e') },
+        { id: 'rivers', name: 'Rivers', type: 'rivers', visible: false, opacity: getOpacity('rivers', 1), color: getColor('rivers', '#06b6d4') },
       ]
     }
-  }, [user?.organization?.name])
+  }, [user?.organization?.name, layerOpacitySettings])
 
   const [layersConfigState, setLayersConfigState] = useState(layersConfig)
 
@@ -573,23 +694,86 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     setLayersConfigState(layersConfig)
   }, [layersConfig])
 
-  const isLoading =
-    territoriesLoading ||
-    currentLocationsLoading ||
-    potentialLocationsLoading ||
-    usStatesLoading ||
-    riversLoading ||
-    roadsLoading
+  // Organization-specific loading logic
+  const isLoading = useMemo(() => {
+    const userOrg = user?.organization?.name?.toLowerCase()
+    
+    if (userOrg === 'jeddah') {
+      // For Jeddah users, only check relevant data sources
+      return territoriesLoading || jeddahFastDataLoading
+    } else if (userOrg === 'hooptrailer') {
+      // For Hooptrailer users, check US-specific data
+      return territoriesLoading || currentLocationsLoading || potentialLocationsLoading || usStatesLoading
+    } else {
+      // For superadmin or unknown, check all data sources
+      return territoriesLoading ||
+        currentLocationsLoading ||
+        potentialLocationsLoading ||
+        usStatesLoading ||
+        riversLoading ||
+        roadsLoading ||
+        adminBoundariesLoading ||
+        customerLocationsLoading
+    }
+  }, [
+    user?.organization?.name,
+    territoriesLoading,
+    currentLocationsLoading,
+    potentialLocationsLoading,
+    usStatesLoading,
+    riversLoading,
+    roadsLoading,
+    adminBoundariesLoading,
+    customerLocationsLoading,
+    jeddahFastDataLoading
+  ])
 
-  const isProcessing =
-    createTerritoryMutation.isPending ||
-    updateTerritoryMutation.isPending ||
-    deleteTerritoryMutation.isPending ||
-    createLocationMutation.isPending ||
-    updateLocationMutation.isPending ||
-    territoriesFetching ||
-    currentLocationsFetching ||
-    potentialLocationsFetching;
+  // Organization-specific processing logic
+  const isProcessing = useMemo(() => {
+    const userOrg = user?.organization?.name?.toLowerCase()
+    
+    if (userOrg === 'jeddah') {
+      // For Jeddah users, only check relevant mutations and fetching
+      return createTerritoryMutation.isPending ||
+        updateTerritoryMutation.isPending ||
+        deleteTerritoryMutation.isPending ||
+        territoriesFetching ||
+        jeddahFastDataLoading
+    } else if (userOrg === 'hooptrailer') {
+      // For Hooptrailer users, check US-specific mutations and fetching
+      return createTerritoryMutation.isPending ||
+        updateTerritoryMutation.isPending ||
+        deleteTerritoryMutation.isPending ||
+        createLocationMutation.isPending ||
+        updateLocationMutation.isPending ||
+        territoriesFetching ||
+        currentLocationsFetching ||
+        potentialLocationsFetching
+    } else {
+      // For superadmin or unknown, check all mutations and fetching
+      return createTerritoryMutation.isPending ||
+        updateTerritoryMutation.isPending ||
+        deleteTerritoryMutation.isPending ||
+        createLocationMutation.isPending ||
+        updateLocationMutation.isPending ||
+        territoriesFetching ||
+        currentLocationsFetching ||
+        potentialLocationsFetching
+    }
+  }, [
+    user?.organization?.name,
+    createTerritoryMutation.isPending,
+    updateTerritoryMutation.isPending,
+    deleteTerritoryMutation.isPending,
+    createLocationMutation.isPending,
+    updateLocationMutation.isPending,
+    territoriesFetching,
+    currentLocationsFetching,
+    potentialLocationsFetching,
+    adminBoundariesLoading,
+    customerLocationsLoading,
+    jeddahFastDataLoading
+  ])
 
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -689,44 +873,74 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
   }, [potentialLocations, usStates])
 
   const layers: MapLayer[] = useMemo(() => {
-    return layersConfigState.map(layer => {
+    console.log(`🔧 Layers array being recalculated with config:`, layersConfigState.map(l => ({ id: l.id, opacity: l.opacity })))
+    
+    const result = layersConfigState.map(layer => {
       let data: FeatureCollection = { type: 'FeatureCollection', features: [] }
-      switch (layer.id) {
-        case 'territories':
-          data = territories as FeatureCollection || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
-          break
-        case 'current-locations':
-          data = (currentLocations as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
-          break
-        case 'potential-locations':
-          data = (potentialLocations as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
-          break
-        case 'us-states':
-          data = (usStates as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
-          break
-        case 'rivers':
-          data = (rivers as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
-          break
-        case 'roads':
-          data = (roads as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
-          break
-        case 'admin-boundaries':
-          data = (adminBoundaries as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
-          break
-        case 'customer-locations':
-          data = (customerLocations as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
-          break
-        case 'population-analysis':
-          data = populationAnalysisLayer || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
-          break
-        case 'expansion-analysis':
-          data = expansionAnalysisLayer || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
-          break
+      
+      // For Jeddah users, use fast data
+      if (userOrg === 'jeddah' && jeddahFastData) {
+        console.log(`Loading Jeddah data for layer: ${layer.id}`)
+        switch (layer.id) {
+          case 'territories':
+            data = territories as FeatureCollection || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+            break
+          case 'admin-boundaries':
+            const allBoundaries = jeddahFastData.boundaries || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+            // Filter to Jeddah region by default, or show all if toggle is on
+            data = showAllAdminBoundaries ? allBoundaries : filterAdminBoundariesForJeddah(allBoundaries)
+            console.log(`Admin boundaries data (filtered: ${!showAllAdminBoundaries}):`, data)
+            break
+          case 'customer-locations':
+            data = jeddahFastData.customers || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+            console.log(`Customer locations data:`, data)
+            break
+        }
+      } else {
+        // For other users, use regular data sources
+        switch (layer.id) {
+          case 'territories':
+            data = territories as FeatureCollection || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+            break
+          case 'current-locations':
+            data = (currentLocations as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+            break
+          case 'potential-locations':
+            data = (potentialLocations as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+            break
+          case 'us-states':
+            data = (usStates as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+            break
+          case 'rivers':
+            data = (rivers as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+            break
+          case 'roads':
+            data = (roads as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+            break
+          case 'admin-boundaries':
+            data = (adminBoundaries as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+            break
+          case 'customer-locations':
+            data = (customerLocations as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+            break
+          case 'population-analysis':
+            data = populationAnalysisLayer || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+            break
+          case 'expansion-analysis':
+            data = expansionAnalysisLayer || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+            break
+        }
       }
       return { ...layer, data, type: layer.type as MapLayer['type'] }
     })
+    
+    console.log(`🔧 Final layers array:`, result.map(l => ({ id: l.id, opacity: l.opacity })))
+    return result
   }, [
     layersConfigState,
+    userOrg,
+    jeddahFastData,
+    showAllAdminBoundaries,
     territories,
     currentLocations,
     potentialLocations,
@@ -750,6 +964,25 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     })
   }, [])
 
+  const fitToCustomerLocations = useCallback(() => {
+    const map = mapRef.current
+    if (!map || userOrg !== 'jeddah') return
+    
+    if (jeddahFastData?.customers?.features?.length > 0) {
+      const bounds = calculateBounds(jeddahFastData.customers.features)
+      
+      if (bounds) {
+        map.fitBounds(bounds, {
+          padding: 50, // Add some padding around the bounds
+          maxZoom: 15, // Don't zoom in too much
+          duration: 1000
+        })
+        return true
+      }
+    }
+    return false
+  }, [userOrg, jeddahFastData])
+
   const flyToDefaultView = useCallback(() => {
     const map = mapRef.current
     if (!map) return
@@ -757,12 +990,15 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     const userOrg = user?.organization?.name?.toLowerCase()
     
     if (userOrg === 'jeddah') {
-      // Center on Saudi Arabia
-      map.flyTo({
-        center: [45.0, 24.0], // Center of Saudi Arabia
-        zoom: 6,
-        duration: 1000,
-      })
+      // For Jeddah users, try to fit to customer locations first
+      if (!fitToCustomerLocations()) {
+        // Fallback to Saudi Arabia center if no customer data
+        map.flyTo({
+          center: [45.0, 24.0], // Center of Saudi Arabia
+          zoom: 6,
+          duration: 1000,
+        })
+      }
     } else if (userOrg === 'hooptrailer') {
       // Center on USA
       map.flyTo({
@@ -778,7 +1014,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         duration: 1000,
       })
     }
-  }, [user?.organization?.name])
+  }, [user?.organization?.name, fitToCustomerLocations])
 
   // Auto-center map when user organization changes
   useEffect(() => {
@@ -790,6 +1026,16 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
       return () => clearTimeout(timer)
     }
   }, [isMapLoaded, user?.organization?.name, flyToDefaultView])
+
+  // Auto-fit to customer locations when Jeddah data loads
+  useEffect(() => {
+    if (isMapLoaded && userOrg === 'jeddah' && jeddahFastData?.customers?.features?.length > 0) {
+      const timer = setTimeout(() => {
+        fitToCustomerLocations()
+      }, 1000) // Wait a bit for data to be processed
+      return () => clearTimeout(timer)
+    }
+  }, [isMapLoaded, userOrg, jeddahFastData, fitToCustomerLocations])
 
   const handleBasemapChange = (basemap: Basemap) => {
     const map = mapRef.current
@@ -1044,7 +1290,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
               id: location.id, // Use the location ID as the feature ID
               properties: {
                 id: location.id, // This is the original location ID
-                name: location.name,
+                name: (location as any).name || (location.properties as any)?.name || `Location ${index + 1}`,
                 type: 'location',
                 selected: false,
                 ...location.properties
@@ -1088,7 +1334,18 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
 
         if (!source) {
           if (layer.data && layer.data.features.length > 0) {
-            map.addSource(sourceId, { type: 'geojson', data: layer.data })
+            // Enable clustering for customer locations
+            if (layer.type === 'customer-locations') {
+              map.addSource(sourceId, { 
+                type: 'geojson', 
+                data: layer.data,
+                cluster: true,
+                clusterMaxZoom: 16,  // Show individual points at zoom 16+
+                clusterRadius: 25    // Much smaller radius for less aggressive clustering
+              })
+            } else {
+              map.addSource(sourceId, { type: 'geojson', data: layer.data })
+            }
           }
         } else {
           if (layer.data) {
@@ -1097,22 +1354,178 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         }
 
         // Ensure layer doesn't already exist
+        console.log(`🔍 Checking layer ${layer.id}: exists=${!!map.getLayer(layer.id)}, hasData=${!!(layer.data && layer.data.features.length > 0)}`)
+        console.log(`🔍 Layer ${layer.id} opacity: ${layer.opacity}`)
         if (layer.data && layer.data.features.length > 0 && !map.getLayer(layer.id)) {
+            console.log(`🔧 Creating new layer: ${layer.id}`)
             if (layer.type === 'territories') {
-                map.addLayer({ id: layer.id, type: 'fill', source: sourceId, paint: { 'fill-color': ['get', 'color'], 'fill-opacity': layer.opacity } })
-                map.addLayer({ id: `${layer.id}-outline`, type: 'line', source: sourceId, paint: { 'line-color': ['get', 'color'], 'line-width': 2, 'line-opacity': layer.opacity } })
+                console.log(`Creating territories layer with individual territory styling`)
+                console.log(`Territory data sample:`, layer.data?.features?.[0]?.properties)
+                
+                // Create fill layer with individual territory colors
+                map.addLayer({ 
+                    id: layer.id, 
+                    type: 'fill', 
+                    source: sourceId, 
+                    paint: { 
+                        'fill-color': [
+                            'case',
+                            ['has', 'color'],
+                            ['get', 'color'],
+                            '#3b82f6'  // Fallback blue color
+                        ],
+                        'fill-opacity': [
+                            'case',
+                            ['has', 'opacity'],
+                            ['get', 'opacity'],
+                            0.7  // Fallback opacity
+                        ]
+                    },
+                    filter: ['==', ['get', 'is_visible'], true]  // Only show visible territories
+                })
+                
+                console.log(`✅ Territories layer created with individual colors`)
+                
+                // Create outline layer with individual territory stroke colors
+                map.addLayer({ 
+                    id: `${layer.id}-outline`, 
+                    type: 'line', 
+                    source: sourceId, 
+                    paint: { 
+                        'line-color': [
+                            'case',
+                            ['has', 'stroke_color'],
+                            ['get', 'stroke_color'],
+                            '#ffffff'  // Fallback white stroke
+                        ],
+                        'line-width': [
+                            'case',
+                            ['has', 'stroke_width'],
+                            ['get', 'stroke_width'],
+                            2.0  // Fallback stroke width
+                        ],
+                        'line-opacity': [
+                            'case',
+                            ['has', 'opacity'],
+                            ['get', 'opacity'],
+                            0.7  // Fallback opacity
+                        ]
+                    },
+                    filter: ['==', ['get', 'is_visible'], true]  // Only show visible territories
+                })
+                
+                // Skip territory labels due to text rendering issues
+                console.log('ℹ️ Skipping territory labels due to map style limitations')
             } else if (layer.type === 'current-locations') {
-                map.addLayer({ id: layer.id, type: 'circle', source: sourceId, paint: { 'circle-radius': 6, 'circle-color': '#22c55e', 'circle-stroke-width': 2, 'circle-stroke-color': '#ffffff', 'circle-opacity': layer.opacity, 'circle-stroke-opacity': layer.opacity } })
+                map.addLayer({ id: layer.id, type: 'circle', source: sourceId, paint: { 'circle-radius': 6, 'circle-color': layer.color || '#22c55e', 'circle-stroke-width': 2, 'circle-stroke-color': '#ffffff', 'circle-opacity': layer.opacity, 'circle-stroke-opacity': layer.opacity } })
             } else if (layer.type === 'potential-locations') {
-                map.addLayer({ id: layer.id, type: 'circle', source: sourceId, paint: { 'circle-radius': 6, 'circle-color': '#f59e0b', 'circle-stroke-width': 2, 'circle-stroke-color': '#ffffff', 'circle-opacity': layer.opacity, 'circle-stroke-opacity': layer.opacity } })
+                map.addLayer({ id: layer.id, type: 'circle', source: sourceId, paint: { 'circle-radius': 6, 'circle-color': layer.color || '#f59e0b', 'circle-stroke-width': 2, 'circle-stroke-color': '#ffffff', 'circle-opacity': layer.opacity, 'circle-stroke-opacity': layer.opacity } })
             } else if (layer.type === 'us-states') {
-                map.addLayer({ id: layer.id, type: 'fill', source: sourceId, paint: { 'fill-color': '#8b5cf6', 'fill-opacity': layer.opacity } })
-                map.addLayer({ id: `${layer.id}-outline`, type: 'line', source: sourceId, paint: { 'line-color': '#8b5cf6', 'line-width': 1, 'line-opacity': layer.opacity } })
+                console.log(`Creating us-states layer with opacity: ${layer.opacity}, color: ${layer.color}`)
+                map.addLayer({ id: layer.id, type: 'fill', source: sourceId, paint: { 'fill-color': layer.color || '#8b5cf6', 'fill-opacity': layer.opacity } })
+                map.addLayer({ id: `${layer.id}-outline`, type: 'line', source: sourceId, paint: { 'line-color': layer.color || '#8b5cf6', 'line-width': 1, 'line-opacity': layer.opacity } })
             } else if (layer.type === 'admin-boundaries') {
-                map.addLayer({ id: layer.id, type: 'fill', source: sourceId, paint: { 'fill-color': '#3b82f6', 'fill-opacity': layer.opacity } })
-                map.addLayer({ id: `${layer.id}-outline`, type: 'line', source: sourceId, paint: { 'line-color': '#1e40af', 'line-width': 2, 'line-opacity': layer.opacity } })
+                console.log(`🔧 Creating admin-boundaries layer with opacity: ${layer.opacity}, color: ${layer.color}`)
+                map.addLayer({ id: layer.id, type: 'fill', source: sourceId, paint: { 'fill-color': layer.color || '#3b82f6', 'fill-opacity': layer.opacity } })
+                map.addLayer({ id: `${layer.id}-outline`, type: 'line', source: sourceId, paint: { 'line-color': layer.color || '#1e40af', 'line-width': 2, 'line-opacity': layer.opacity } })
+                console.log(`✅ Created admin-boundaries layer with fill-opacity: ${layer.opacity}`)
+                console.log(`✅ Created admin-boundaries-outline layer with line-opacity: ${layer.opacity}`)
             } else if (layer.type === 'customer-locations') {
-                map.addLayer({ id: layer.id, type: 'circle', source: sourceId, paint: { 'circle-radius': 8, 'circle-color': '#ef4444', 'circle-stroke-width': 2, 'circle-stroke-color': '#ffffff', 'circle-opacity': layer.opacity, 'circle-stroke-opacity': layer.opacity } })
+                console.log(`Creating customer-locations layer with opacity: ${layer.opacity}, color: ${layer.color}`)
+                
+                // Add clustering for customer locations
+                map.addLayer({
+                    id: `${layer.id}-clusters`,
+                    type: 'circle',
+                    source: sourceId,
+                    filter: ['has', 'point_count'],
+                    paint: {
+                        'circle-color': [
+                            'step',
+                            ['get', 'point_count'],
+                            '#51bbd6',  // Blue for small clusters
+                            10,         // Switch to yellow at 10 points
+                            '#f1f075',  // Yellow for medium clusters
+                            50,         // Switch to pink at 50 points
+                            '#f28cb1'   // Pink for large clusters
+                        ],
+                        'circle-radius': [
+                            'step',
+                            ['get', 'point_count'],
+                            15,  // radius for small clusters
+                            10,  // Switch size at 10 points
+                            20,  // radius for medium clusters
+                            50,  // Switch size at 50 points
+                            25   // radius for large clusters
+                        ],
+                        'circle-opacity': layer.opacity,
+                        'circle-stroke-width': 2,
+                        'circle-stroke-color': '#ffffff',
+                        'circle-stroke-opacity': layer.opacity
+                    }
+                })
+                
+                // Skip cluster count labels due to text rendering issues
+                console.log('ℹ️ Skipping cluster count labels due to map style limitations')
+                
+                // Add unclustered points (colored by territory)
+                map.addLayer({
+                    id: layer.id,
+                    type: 'circle',
+                    source: sourceId,
+                    filter: ['!', ['has', 'point_count']],
+                    paint: {
+                        'circle-radius': 6,
+                        'circle-color': ['get', 'territory_color'],  // Use territory color
+                        'circle-stroke-width': 2,
+                        'circle-stroke-color': '#ffffff',
+                        'circle-opacity': ['get', 'territory_opacity'],  // Use territory opacity
+                        'circle-stroke-opacity': layer.opacity
+                    }
+                })
+
+                // Add click handler to expand clusters (using proper MapLibre API)
+                map.on('click', `${layer.id}-clusters`, async (e) => {
+                    const features = map.queryRenderedFeatures(e.point, {
+                        layers: [`${layer.id}-clusters`]
+                    })
+                    
+                    if (features.length > 0) {
+                        const clusterId = features[0].properties?.cluster_id
+                        if (clusterId) {
+                            try {
+                                const source = map.getSource(sourceId) as any
+                                if (source && source.getClusterExpansionZoom) {
+                                    const zoom = await source.getClusterExpansionZoom(clusterId)
+                                    map.easeTo({
+                                        center: (features[0].geometry as any).coordinates,
+                                        zoom: zoom,
+                                        duration: 500
+                                    })
+                                }
+                            } catch (error) {
+                                console.log('Could not expand cluster:', error)
+                                // Fallback to simple zoom
+                                const coords = (features[0].geometry as any).coordinates
+                                if (coords) {
+                                    map.easeTo({
+                                        center: coords,
+                                        zoom: Math.min(map.getZoom() + 2, 18),
+                                        duration: 500
+                                    })
+                                }
+                            }
+                        }
+                    }
+                })
+
+                // Change cursor on hover
+                map.on('mouseenter', `${layer.id}-clusters`, () => {
+                    map.getCanvas().style.cursor = 'pointer'
+                })
+                map.on('mouseleave', `${layer.id}-clusters`, () => {
+                    map.getCanvas().style.cursor = ''
+                })
             } else if (layer.type === 'population-analysis') {
                 map.addLayer({
                     id: layer.id,
@@ -1171,9 +1584,140 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
                 },
               })
             } else if (layer.type === 'rivers') {
-                map.addLayer({ id: layer.id, type: 'line', source: sourceId, paint: { 'line-color': '#38bdf8', 'line-width': 1.5, 'line-opacity': layer.opacity } })
+                map.addLayer({ id: layer.id, type: 'line', source: sourceId, paint: { 'line-color': layer.color || '#38bdf8', 'line-width': 1.5, 'line-opacity': layer.opacity } })
             } else if (layer.type === 'roads') {
-                map.addLayer({ id: layer.id, type: 'line', source: sourceId, paint: { 'line-color': '#6b7280', 'line-width': 1, 'line-opacity': layer.opacity } })
+                map.addLayer({ id: layer.id, type: 'line', source: sourceId, paint: { 'line-color': layer.color || '#6b7280', 'line-width': 1, 'line-opacity': layer.opacity } })
+            }
+        }
+        
+        // Update opacity and color for existing layers
+        if (map.getLayer(layer.id)) {
+            console.log(`🔧 Updating opacity for existing layer ${layer.id} to ${layer.opacity}`)
+            if (layer.color) {
+                console.log(`🔧 Updating color for existing layer ${layer.id} to ${layer.color}`)
+            }
+            const paint = map.getLayer(layer.id)?.paint
+            console.log(`🔍 Paint properties for ${layer.id}:`, paint)
+            console.log(`🔍 Current opacity values:`, {
+                'fill-opacity': (paint as any)?.['fill-opacity'],
+                'line-opacity': (paint as any)?.['line-opacity'],
+                'circle-opacity': (paint as any)?.['circle-opacity'],
+                'circle-stroke-opacity': (paint as any)?.['circle-stroke-opacity']
+            })
+            
+            if (paint) {
+                const opacityProps = ['fill-opacity', 'line-opacity', 'circle-opacity', 'circle-stroke-opacity']
+                let foundProps = 0
+                opacityProps.forEach(prop => {
+                    if ((paint as any)[prop] !== undefined) {
+                        foundProps++
+                        console.log(`🔧 Setting ${prop} to ${layer.opacity} for existing layer ${layer.id}`)
+                        try {
+                            map.setPaintProperty(layer.id, prop, layer.opacity)
+                            console.log(`✅ Successfully updated ${prop} to ${layer.opacity}`)
+                        } catch (error) {
+                            console.error(`❌ Error updating ${prop} for layer ${layer.id}:`, error)
+                        }
+                    }
+                })
+                
+                // Update color properties
+                if (layer.color) {
+                    console.log(`🔧 Attempting to update color for layer ${layer.id} to ${layer.color}`)
+                    
+                    // Try different color properties based on layer type
+                    if (layer.type === 'territories') {
+                        // Skip color updates for territories - they use individual colors from data
+                        console.log(`ℹ️ Skipping color update for territories - using individual colors from data`)
+                    } else if (layer.type === 'admin-boundaries' || layer.type === 'us-states') {
+                        // Fill layers
+                        try {
+                            map.setPaintProperty(layer.id, 'fill-color', layer.color)
+                            console.log(`✅ Successfully set fill-color to ${layer.color}`)
+                        } catch (error: any) {
+                            console.log(`❌ Could not set fill-color for ${layer.id}:`, error.message)
+                        }
+                    } else if (layer.type === 'customer-locations' || layer.type === 'current-locations' || layer.type === 'potential-locations') {
+                        // Circle layers
+                        try {
+                            map.setPaintProperty(layer.id, 'circle-color', layer.color)
+                            console.log(`✅ Successfully set circle-color to ${layer.color}`)
+                        } catch (error: any) {
+                            console.log(`❌ Could not set circle-color for ${layer.id}:`, error.message)
+                        }
+                    } else if (layer.type === 'rivers' || layer.type === 'roads') {
+                        // Line layers
+                        try {
+                            map.setPaintProperty(layer.id, 'line-color', layer.color)
+                            console.log(`✅ Successfully set line-color to ${layer.color}`)
+                        } catch (error: any) {
+                            console.log(`❌ Could not set line-color for ${layer.id}:`, error.message)
+                        }
+                    }
+                }
+                
+                if (foundProps === 0) {
+                    console.log(`❌ No opacity properties found for layer ${layer.id}. Available properties:`, Object.keys(paint))
+                    // Try to set opacity anyway for common properties
+                    const commonProps = ['fill-opacity', 'line-opacity', 'circle-opacity']
+                    commonProps.forEach(prop => {
+                        console.log(`🔧 Attempting to set ${prop} to ${layer.opacity} for layer ${layer.id}`)
+                        try {
+                            map.setPaintProperty(layer.id, prop, layer.opacity)
+                            console.log(`✅ Successfully set ${prop} to ${layer.opacity}`)
+                        } catch (error: any) {
+                            console.log(`❌ Could not set ${prop} for layer ${layer.id}:`, error.message)
+                        }
+                    })
+                }
+            } else {
+                console.log(`❌ No paint properties found for layer ${layer.id}`)
+            }
+        }
+        
+        if (map.getLayer(`${layer.id}-outline`)) {
+            console.log(`🔧 Updating opacity for existing outline layer ${layer.id}-outline to ${layer.opacity}`)
+            if (layer.color) {
+                console.log(`🔧 Updating color for existing outline layer ${layer.id}-outline to ${layer.color}`)
+            }
+            const paint = map.getLayer(`${layer.id}-outline`)?.paint
+            console.log(`🔍 Paint properties for outline ${layer.id}-outline:`, paint)
+            
+            if (paint) {
+                if ((paint as any)['line-opacity'] !== undefined) {
+                    console.log(`🔧 Setting line-opacity to ${layer.opacity} for existing outline layer ${layer.id}-outline`)
+                    try {
+                        map.setPaintProperty(`${layer.id}-outline`, 'line-opacity', layer.opacity)
+                        console.log(`✅ Successfully updated line-opacity to ${layer.opacity}`)
+                    } catch (error: any) {
+                        console.error(`❌ Error updating line-opacity for ${layer.id}-outline:`, error)
+                    }
+                } else {
+                    console.log(`❌ No line-opacity property found for outline layer ${layer.id}-outline. Available properties:`, Object.keys(paint))
+                    // Try to set line-opacity anyway
+                    console.log(`🔧 Attempting to set line-opacity to ${layer.opacity} for outline layer ${layer.id}-outline`)
+                    try {
+                        map.setPaintProperty(`${layer.id}-outline`, 'line-opacity', layer.opacity)
+                        console.log(`✅ Successfully set line-opacity to ${layer.opacity}`)
+                    } catch (error: any) {
+                        console.log(`❌ Could not set line-opacity for ${layer.id}-outline:`, error.message)
+                    }
+                }
+                
+                // Update outline color if provided (skip for territories - they use individual colors)
+                if (layer.color && layer.type !== 'territories') {
+                    console.log(`🔧 Attempting to update outline color for layer ${layer.id}-outline to ${layer.color}`)
+                    try {
+                        map.setPaintProperty(`${layer.id}-outline`, 'line-color', layer.color)
+                        console.log(`✅ Successfully updated outline line-color to ${layer.color}`)
+                    } catch (error: any) {
+                        console.log(`❌ Could not set line-color for ${layer.id}-outline:`, error.message)
+                    }
+                } else if (layer.type === 'territories') {
+                    console.log(`ℹ️ Skipping outline color update for territories - using individual colors from data`)
+                }
+            } else {
+                console.log(`❌ No paint properties found for outline layer ${layer.id}-outline`)
             }
         }
         
@@ -1183,6 +1727,17 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         }
         if (map.getLayer(`${layer.id}-outline`)) {
             map.setLayoutProperty(`${layer.id}-outline`, 'visibility', layer.visible ? 'visible' : 'none')
+        }
+        // Handle territory labels
+        if (map.getLayer(`${layer.id}-labels`)) {
+            map.setLayoutProperty(`${layer.id}-labels`, 'visibility', layer.visible ? 'visible' : 'none')
+        }
+        // Handle customer location clusters
+        if (map.getLayer(`${layer.id}-clusters`)) {
+            map.setLayoutProperty(`${layer.id}-clusters`, 'visibility', layer.visible ? 'visible' : 'none')
+        }
+        if (map.getLayer(`${layer.id}-cluster-count`)) {
+            map.setLayoutProperty(`${layer.id}-cluster-count`, 'visibility', layer.visible ? 'visible' : 'none')
         }
       })
     }
@@ -1199,39 +1754,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     }
   }, [layers, isMapLoaded])
 
-  // Effect to update layer opacity
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map || !isMapLoaded) return
-
-    console.log('Updating layer opacity:', layersConfigState)
-    
-    layersConfigState.forEach(layer => {
-      console.log(`Updating opacity for layer ${layer.id} to ${layer.opacity}`)
-      
-      if (map.getLayer(layer.id)) {
-        const paint = map.getLayer(layer.id)?.paint
-        if (!paint) return
-
-        const opacityProps = ['fill-opacity', 'line-opacity', 'circle-opacity', 'circle-stroke-opacity']
-        opacityProps.forEach(prop => {
-          if ((paint as any)[prop] !== undefined) {
-            console.log(`Setting ${prop} to ${layer.opacity} for layer ${layer.id}`)
-            map.setPaintProperty(layer.id, prop, layer.opacity)
-          }
-        })
-      }
-      if (map.getLayer(`${layer.id}-outline`)) {
-        const paint = map.getLayer(`${layer.id}-outline`)?.paint
-        if (!paint) return
-        
-        if ((paint as any)['line-opacity'] !== undefined) {
-          console.log(`Setting line-opacity to ${layer.opacity} for layer ${layer.id}-outline`)
-          map.setPaintProperty(`${layer.id}-outline`, 'line-opacity', layer.opacity)
-        }
-      }
-    })
-  }, [layersConfigState, isMapLoaded])
+  // Note: Opacity updates are now handled in the addDataLayers function above
 
 
   // Effect for click handlers
@@ -1371,9 +1894,67 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
   }
 
   const handleLayerOpacityChange = (layerId: string, opacity: number) => {
-    setLayersConfigState(prev =>
-      prev.map(layer => (layer.id === layerId ? { ...layer, opacity } : layer))
-    )
+    console.log(`🔧 Opacity change requested: ${layerId} -> ${opacity}`)
+    setLayersConfigState(prev => {
+      const updated = prev.map(layer => (layer.id === layerId ? { ...layer, opacity } : layer))
+      console.log(`🔧 Updated layers config:`, updated.map(l => ({ id: l.id, opacity: l.opacity })))
+      return updated
+    })
+  }
+
+  const handleLayerColorChange = (layerId: string, color: string) => {
+    console.log(`🔧 Color change requested: ${layerId} -> ${color}`)
+    setLayersConfigState(prev => {
+      const updated = prev.map(layer => (layer.id === layerId ? { ...layer, color } : layer))
+      console.log(`🔧 Updated layers config:`, updated.map(l => ({ id: l.id, color: l.color })))
+      return updated
+    })
+    
+    // For territories layer, update the map source data immediately for live preview
+    if (layerId === 'territories' && mapRef.current) {
+      const territoriesLayer = layers.find(l => l.id === layerId)
+      if (territoriesLayer?.data?.features) {
+        const source = mapRef.current.getSource('territories') as any
+        if (source && source.setData) {
+          // Update the source data to reflect the color change
+          const updatedData = {
+            ...territoriesLayer.data,
+            features: territoriesLayer.data.features.map((f: any) => ({
+              ...f,
+              properties: { ...f.properties, color }
+            }))
+          }
+          source.setData(updatedData)
+          console.log(`✅ Updated territories source data with new color: ${color}`)
+        }
+      }
+    }
+  }
+
+  // New handler for individual territory color changes with live preview
+  const handleTerritoryColorChange = (territoryId: string, color: string) => {
+    console.log(`🔧 Individual territory color change: ${territoryId} -> ${color}`)
+    
+    // Update the territories layer data immediately for live preview
+    if (mapRef.current) {
+      const territoriesLayer = layers.find(l => l.type === 'territories')
+      if (territoriesLayer?.data?.features) {
+        const source = mapRef.current.getSource('territories') as any
+        if (source && source.setData) {
+          // Update only the specific territory's color
+          const updatedData = {
+            ...territoriesLayer.data,
+            features: territoriesLayer.data.features.map((f: any) => 
+              f.id === territoryId 
+                ? { ...f, properties: { ...f.properties, color } }
+                : f
+            )
+          }
+          source.setData(updatedData)
+          console.log(`✅ Updated territory ${territoryId} color to ${color} with live preview`)
+        }
+      }
+    }
   }
 
   const handleSaveFeature = () => {
@@ -1617,6 +2198,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
           isSaving={isSaving}
           locationDrawType={locationDrawType}
           onLocationDrawTypeChange={setLocationDrawType}
+          userOrg={userOrg}
         />
         
         
@@ -1702,11 +2284,16 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
           layers={layers}
                   onLayerToggle={handleLayerToggle}
                   onLayerOpacityChange={handleLayerOpacityChange}
+                  onLayerColorChange={handleLayerColorChange}
+                  onTerritoryColorChange={handleTerritoryColorChange}
                   drawingTool={drawingTool}
                   onDrawingToolChange={handleDrawingToolChange}
                   onExport={handleExport}
                   onHome={flyToDefaultView}
                   isLoading={isLoading}
+                  userOrg={userOrg}
+                  showAllAdminBoundaries={showAllAdminBoundaries}
+                  onToggleAllAdminBoundaries={setShowAllAdminBoundaries}
                 />
               </div>
             </DrawerContent>
@@ -1718,12 +2305,17 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
           layers={layers}
           onLayerToggle={handleLayerToggle}
           onLayerOpacityChange={handleLayerOpacityChange}
+          onLayerColorChange={handleLayerColorChange}
+          onTerritoryColorChange={handleTerritoryColorChange}
           drawingTool={drawingTool}
           onDrawingToolChange={handleDrawingToolChange}
           onExport={handleExport}
           onHome={flyToDefaultView}
           className="m-4"
           isLoading={isLoading}
+          userOrg={userOrg}
+          showAllAdminBoundaries={showAllAdminBoundaries}
+          onToggleAllAdminBoundaries={setShowAllAdminBoundaries}
         />
       </div>
       <TerritoryFormModal
@@ -1745,11 +2337,20 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         map={mapRef.current}
         layers={layers}
       />
-      <TerritoryGenerator
-        isOpen={isTerritoryGeneratorOpen}
-        onOpenChange={setIsTerritoryGeneratorOpen}
-        onTerritoriesGenerated={handleTerritoriesGenerated}
-      />
+      {userOrg === 'jeddah' ? (
+        <JeddahTerritoryGenerator
+          isOpen={isTerritoryGeneratorOpen}
+          onOpenChange={setIsTerritoryGeneratorOpen}
+          onTerritoriesGenerated={handleTerritoriesGenerated}
+          userOrg={userOrg}
+        />
+      ) : (
+        <TerritoryGenerator
+          isOpen={isTerritoryGeneratorOpen}
+          onOpenChange={setIsTerritoryGeneratorOpen}
+          onTerritoriesGenerated={handleTerritoriesGenerated}
+        />
+      )}
     </div>
   )
 }

@@ -4,6 +4,12 @@ import React, { useState } from 'react'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { useTerritories, useDeleteTerritory, useCreateTerritory, useUpdateTerritory } from '@/hooks/use-api'
+import { 
+  useOrganizationTerritories, 
+  useOrganizationCreateTerritory, 
+  useOrganizationUpdateTerritory, 
+  useOrganizationDeleteTerritory 
+} from '@/hooks/use-organization-tables'
 import { Territory } from '@/types'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/common/data-table'
@@ -27,11 +33,11 @@ import { useRBAC } from '@/hooks/use-rbac'
 
 export default function TerritoriesPage() {
   const { pagination, setPagination } = usePagination()
-  const { data: territoriesData, isLoading: territoriesLoading } = useTerritories(pagination)
+  const { data: territoriesData, isLoading: territoriesLoading } = useOrganizationTerritories(pagination)
   const { can, user } = useRBAC()
-  const deleteTerritory = useDeleteTerritory()
-  const createTerritory = useCreateTerritory()
-  const updateTerritory = useUpdateTerritory()
+  const deleteTerritory = useOrganizationDeleteTerritory()
+  const createTerritory = useOrganizationCreateTerritory()
+  const updateTerritory = useOrganizationUpdateTerritory()
   
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isFormModalOpen, setIsFormModalOpen] = useState(false)
@@ -84,6 +90,22 @@ export default function TerritoriesPage() {
     {
       accessorKey: 'description',
       header: 'Description',
+    },
+    {
+      accessorKey: 'customer_count',
+      header: 'Customer Count',
+      cell: ({ row }) => {
+        const count = row.original.customer_count || 0
+        return count
+      },
+    },
+    {
+      accessorKey: 'generation_method',
+      header: 'Generation Method',
+      cell: ({ row }) => {
+        const method = row.original.generation_method || 'Unknown'
+        return method
+      },
     },
     {
       accessorKey: 'created_at',

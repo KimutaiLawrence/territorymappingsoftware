@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
-import { Territory, Location, Dataset, User, Role, Organization } from '@/types'
+import { Territory, Location, Dataset, User, Organization } from '@/types'
 import { PaginationState } from '@tanstack/react-table'
 
 // Define the Country type
@@ -72,19 +72,54 @@ export function useMapAdminBoundaries() {
   return useQuery({
     queryKey: ['map-admin-boundaries'],
     queryFn: async () => {
-      const response = await api.get('/api/gisdata/administrative?format=geojson&per_page=20')
+      // Check if we have a user in localStorage to determine organization
+      const user = localStorage.getItem('user')
+      let endpoint = '/api/gisdata/administrative?format=geojson&per_page=20'
+      
+      if (user) {
+        try {
+          const userData = JSON.parse(user)
+          if (userData.organization?.name?.toLowerCase() === 'jeddah') {
+            // Use Jeddah-specific fast endpoint
+            endpoint = '/api/jeddah/fast-data'
+            const response = await api.get(endpoint)
+            // Extract admin boundaries from fast-data response
+            return response.data?.data?.admin_boundaries || { type: 'FeatureCollection', features: [] }
+          }
+        } catch (e) {
+          console.warn('Could not parse user data:', e)
+        }
+      }
+      
+      const response = await api.get(endpoint)
       return response.data || { type: 'FeatureCollection', features: [] }
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
   })
 }
 
-// Customer Locations
+// Customer Locations - Organization-specific
 export function useMapCustomerLocations() {
   return useQuery({
     queryKey: ['map-customer-locations'],
     queryFn: async () => {
-      const response = await api.get('/api/gisdata/customer-locations?format=geojson&per_page=20')
+      // Check if we have a user in localStorage to determine organization
+      const user = localStorage.getItem('user')
+      let endpoint = '/api/gisdata/customer-locations?format=geojson&per_page=20'
+      
+      if (user) {
+        try {
+          const userData = JSON.parse(user)
+          if (userData.organization?.name?.toLowerCase() === 'jeddah') {
+            // Use Jeddah-specific fast endpoint
+            endpoint = '/api/jeddah/customers?per_page=2000'
+          }
+        } catch (e) {
+          console.warn('Could not parse user data:', e)
+        }
+      }
+      
+      const response = await api.get(endpoint)
       return response.data || { type: 'FeatureCollection', features: [] }
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -262,8 +297,8 @@ export function useDeleteLocation() {
 
 // All Locations
 export function useLocations() {
-  const currentLocations = useCurrentLocations()
-  const potentialLocations = usePotentialLocations()
+  const currentLocations = useCurrentLocations({ pageIndex: 0, pageSize: 100 })
+  const potentialLocations = usePotentialLocations({ pageIndex: 0, pageSize: 100 })
 
   const combinedLocations = [
     ...(Array.isArray(currentLocations.data) ? currentLocations.data : []),
@@ -277,12 +312,28 @@ export function useLocations() {
   }
 }
 
-// Datasets
+// Datasets - Organization-aware
 export function useDatasets() {
   return useQuery({
     queryKey: ['datasets'],
     queryFn: async () => {
-      const response = await api.get<{ datasets: Dataset[] }>('/api/datasets/')
+      // Check if we have a user in localStorage to determine organization
+      const user = localStorage.getItem('user')
+      let endpoint = '/api/datasets/'
+      
+      if (user) {
+        try {
+          const userData = JSON.parse(user)
+          if (userData.organization?.name?.toLowerCase() === 'jeddah') {
+            // For Jeddah users, use Jeddah-specific datasets endpoint
+            endpoint = '/api/jeddah/datasets'
+          }
+        } catch (e) {
+          console.warn('Failed to parse user data from localStorage:', e)
+        }
+      }
+      
+      const response = await api.get<{ datasets: Dataset[] }>(endpoint)
       return response.data.datasets
     },
   })
@@ -329,11 +380,27 @@ export function useMapTerritories() {
   return useQuery({
     queryKey: ['map-territories'],
     queryFn: async () => {
-      const response = await api.get('/api/territories/?format=geojson&per_page=1000')
+      // Check if we have a user in localStorage to determine organization
+      const user = localStorage.getItem('user')
+      let endpoint = '/api/territories/?format=geojson&per_page=1000'
+      
+      if (user) {
+        try {
+          const userData = JSON.parse(user)
+          if (userData.organization?.name?.toLowerCase() === 'jeddah') {
+            // Use Jeddah-specific territories endpoint
+            endpoint = '/api/jeddah/territories'
+          }
+        } catch (e) {
+          console.warn('Could not parse user data:', e)
+        }
+      }
+      
+      const response = await api.get(endpoint)
       return response.data || { type: 'FeatureCollection', features: [] }
     },
     staleTime: 1000 * 60, // 1 minute
-    cacheTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 5, // 5 minutes
     refetchOnMount: true,
     refetchOnWindowFocus: true,
   })
@@ -343,11 +410,27 @@ export function useMapCurrentLocations() {
   return useQuery({
     queryKey: ['map-current-locations'],
     queryFn: async () => {
-      const response = await api.get('/api/current-locations/?format=geojson&per_page=1000')
+      // Check if we have a user in localStorage to determine organization
+      const user = localStorage.getItem('user')
+      let endpoint = '/api/current-locations/?format=geojson&per_page=1000'
+      
+      if (user) {
+        try {
+          const userData = JSON.parse(user)
+          if (userData.organization?.name?.toLowerCase() === 'jeddah') {
+            // For Jeddah users, use customer locations instead of current locations
+            endpoint = '/api/jeddah/customers?per_page=1000'
+          }
+        } catch (e) {
+          console.warn('Failed to parse user data from localStorage:', e)
+        }
+      }
+      
+      const response = await api.get(endpoint)
       return response.data || { type: 'FeatureCollection', features: [] }
     },
     staleTime: 1000 * 60, // 1 minute
-    cacheTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 5, // 5 minutes
     refetchOnMount: true,
     refetchOnWindowFocus: true,
   })
@@ -357,11 +440,27 @@ export function useMapPotentialLocations() {
   return useQuery({
     queryKey: ['map-potential-locations'],
     queryFn: async () => {
-      const response = await api.get('/api/potential-locations/?format=geojson&per_page=1000')
+      // Check if we have a user in localStorage to determine organization
+      const user = localStorage.getItem('user')
+      let endpoint = '/api/potential-locations/?format=geojson&per_page=1000'
+      
+      if (user) {
+        try {
+          const userData = JSON.parse(user)
+          if (userData.organization?.name?.toLowerCase() === 'jeddah') {
+            // For Jeddah users, return empty collection since they don't use potential locations
+            return { type: 'FeatureCollection', features: [] }
+          }
+        } catch (e) {
+          console.warn('Failed to parse user data from localStorage:', e)
+        }
+      }
+      
+      const response = await api.get(endpoint)
       return response.data || { type: 'FeatureCollection', features: [] }
     },
     staleTime: 1000 * 60, // 1 minute
-    cacheTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 5, // 5 minutes
     refetchOnMount: true,
     refetchOnWindowFocus: true,
   })
@@ -372,7 +471,7 @@ export function useRoles() {
   return useQuery({
     queryKey: ['roles'],
     queryFn: async () => {
-      const response = await api.get<{ roles: Role[] }>('/api/roles/')
+      const response = await api.get<{ roles: any[] }>('/api/roles/')
       return response.data.roles
     },
   })

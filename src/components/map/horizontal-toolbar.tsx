@@ -44,6 +44,7 @@ interface HorizontalToolbarProps {
   isSaving: boolean
   locationDrawType: 'current' | 'potential'
   onLocationDrawTypeChange: (type: 'current' | 'potential') => void
+  userOrg?: string
   className?: string
 }
 
@@ -62,6 +63,7 @@ export function HorizontalToolbar({
   isSaving,
   locationDrawType,
   onLocationDrawTypeChange,
+  userOrg,
   className,
 }: HorizontalToolbarProps) {
   const tools: {
@@ -84,7 +86,12 @@ export function HorizontalToolbar({
     action: () => void
   }[] = [
     { id: 'home', label: 'Home View', icon: <Home className="h-4 w-4" />, action: onHome },
-    { id: 'territory-generator', label: 'Generate Territories', icon: <Target className="h-4 w-4" />, action: onTerritoryGenerator },
+    { 
+      id: 'territory-generator', 
+      label: userOrg === 'jeddah' ? 'Jeddah Territory Generator' : 'Generate Territories', 
+      icon: <Target className="h-4 w-4" />, 
+      action: onTerritoryGenerator 
+    },
     { id: 'export', label: 'Export PDF', icon: <Download className="h-4 w-4" />, action: onExport },
     { id: 'print', label: 'Print PDF', icon: <Printer className="h-4 w-4" />, action: onPrint },
   ]

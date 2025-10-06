@@ -4,6 +4,8 @@ import React, { useState } from 'react'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { useCurrentLocations, useDeleteLocation, useCreateLocation, useUpdateLocation } from '@/hooks/use-api'
+import { useOrganizationCreateLocation, useOrganizationUpdateLocation, useOrganizationDeleteLocation } from '@/hooks/use-organization-api'
+import { useOrganizationLocations } from '@/hooks/use-organization-tables'
 import { Location } from '@/types'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/common/data-table'
@@ -27,11 +29,19 @@ import { useRBAC } from '@/hooks/use-rbac'
 
 export default function LocationsPage() {
   const { pagination, setPagination } = usePagination()
-  const { data: locationsData, isLoading: locationsLoading } = useCurrentLocations(pagination)
+  const { data: locationsData, isLoading: locationsLoading } = useOrganizationLocations(pagination)
   const { can, user } = useRBAC()
-  const createLocation = useCreateLocation()
-  const updateLocation = useUpdateLocation()
-  const deleteLocation = useDeleteLocation()
+  
+  // Use organization-aware hooks
+  const createLocation = useOrganizationCreateLocation()
+  const updateLocation = useOrganizationUpdateLocation()
+  const deleteLocation = useOrganizationDeleteLocation()
+  
+  // Determine page title and type based on organization
+  const userOrg = user?.organization?.name?.toLowerCase()
+  const isJeddah = userOrg === 'jeddah'
+  const pageTitle = isJeddah ? 'Customer Locations' : 'Current Locations'
+  const locationType = isJeddah ? 'customer' : 'current'
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isFormModalOpen, setIsFormModalOpen] = useState(false)
@@ -45,7 +55,7 @@ export default function LocationsPage() {
 
   const handleConfirmDelete = () => {
     if (selectedLocation) {
-      deleteLocation.mutate({ id: selectedLocation.id, type: 'current' })
+      deleteLocation.mutate({ id: selectedLocation.id, type: locationType as 'current' | 'potential' })
       setIsDeleteDialogOpen(false)
       setSelectedLocation(null)
     }
@@ -104,9 +114,9 @@ export default function LocationsPage() {
       }
     }
     if (selectedLocation) {
-      updateLocation.mutate({ id: selectedLocation.id, data: formattedData, type: 'current' })
+      updateLocation.mutate({ id: selectedLocation.id, data: formattedData, type: locationType as 'current' | 'potential' })
     } else {
-      createLocation.mutate(formattedData)
+      createLocation.mutate({ data: formattedData, type: locationType as 'current' | 'potential' })
     }
     setIsFormModalOpen(false)
     setSelectedLocation(null)
@@ -119,15 +129,33 @@ export default function LocationsPage() {
     },
     {
       header: "City",
-      accessorFn: row => row.properties.city,
+      accessorFn: row => row.properties?.city || 'Jeddah',
     },
     {
       header: "State",
-      accessorFn: row => row.properties.state_code,
+      accessorFn: row => row.properties?.state_code || 'SA',
     },
     {
       header: "Status",
-      accessorFn: row => row.properties.status,
+      accessorFn: row => row.properties?.status || 'active',
+    },
+    {
+      header: "Coordinates",
+      accessorFn: row => {
+        if (row.latitude && row.longitude) {
+          return `${row.latitude.toFixed(4)}, ${row.longitude.toFixed(4)}`
+        }
+        return 'N/A'
+      },
+    },
+    {
+      header: "Created At",
+      accessorFn: row => {
+        if (row.created_at) {
+          return new Date(row.created_at).toLocaleDateString()
+        }
+        return 'N/A'
+      },
     },
     {
       id: "actions",
@@ -176,7 +204,7 @@ export default function LocationsPage() {
       <DashboardLayout>
         <div className="h-full flex flex-col p-4 space-y-4">
           <div className="flex justify-between items-center shrink-0">
-            <h1 className="text-2xl font-bold">Current Locations</h1>
+            <h1 className="text-2xl font-bold">{pageTitle}</h1>
             {can('create', 'location') && (
               <Button onClick={handleCreateClick}>
                 <Plus className="mr-2 h-4 w-4" /> Create Location
@@ -210,7 +238,7 @@ export default function LocationsPage() {
             onOpenChange={setIsFormModalOpen}
             onSubmit={handleFormSubmit}
             location={selectedLocation}
-            locationType="current"
+            locationType={locationType}
           />
           <DetailsDialog
             isOpen={isDetailsModalOpen}

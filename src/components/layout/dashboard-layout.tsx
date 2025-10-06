@@ -45,13 +45,39 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     router.push('/login')
   }
 
-  const navigation = [
-    { name: 'Map', href: '/dashboard', icon: Map },
-    { name: 'Territories', href: '/territories', icon: Globe2, color: 'text-sky-500' },
-    { name: 'Current Locations', href: '/locations', icon: MapPin, color: 'text-green-500' },
-    { name: 'Potential Locations', href: '/potential-locations', icon: Target, color: 'text-orange-500' },
-    { name: 'Datasets', href: '/datasets', icon: Database },
-  ]
+  // Organization-aware navigation
+  const getNavigation = () => {
+    const userOrg = user?.organization?.name?.toLowerCase()
+    
+    if (userOrg === 'jeddah') {
+      return [
+        { name: 'Map', href: '/dashboard', icon: Map },
+        { name: 'Territories', href: '/territories', icon: Globe2, color: 'text-sky-500' },
+        { name: 'Customer Locations', href: '/locations', icon: MapPin, color: 'text-green-500' },
+        { name: 'Datasets', href: '/datasets', icon: Database },
+      ]
+    } else if (userOrg === 'hooptrailer') {
+      return [
+        { name: 'Map', href: '/dashboard', icon: Map },
+        { name: 'Territories', href: '/territories', icon: Globe2, color: 'text-sky-500' },
+        { name: 'Current Locations', href: '/locations', icon: MapPin, color: 'text-green-500' },
+        { name: 'Potential Locations', href: '/potential-locations', icon: Target, color: 'text-orange-500' },
+        { name: 'Datasets', href: '/datasets', icon: Database },
+      ]
+    } else {
+      // Superadmin or unknown - show all
+      return [
+        { name: 'Map', href: '/dashboard', icon: Map },
+        { name: 'Territories', href: '/territories', icon: Globe2, color: 'text-sky-500' },
+        { name: 'Current Locations', href: '/locations', icon: MapPin, color: 'text-green-500' },
+        { name: 'Potential Locations', href: '/potential-locations', icon: Target, color: 'text-orange-500' },
+        { name: 'Customer Locations', href: '/customer-locations', icon: Users, color: 'text-red-500' },
+        { name: 'Datasets', href: '/datasets', icon: Database },
+      ]
+    }
+  }
+
+  const navigation = getNavigation()
 
   const adminNavigation = [
     { name: 'Settings', href: '/settings', icon: Settings },

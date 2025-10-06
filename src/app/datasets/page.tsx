@@ -3,13 +3,14 @@
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { useDatasets } from '@/hooks/use-api'
+import { useOrganizationDatasets } from '@/hooks/use-organization-tables'
 import { Dataset } from '@/types'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/common/data-table'
 import Loader from '@/components/common/loader'
 
 export default function DatasetsPage() {
-  const { data: datasets, isLoading: datasetsLoading } = useDatasets()
+  const { data: datasets, isLoading: datasetsLoading } = useOrganizationDatasets()
 
   const columns: ColumnDef<Dataset>[] = [
     {
