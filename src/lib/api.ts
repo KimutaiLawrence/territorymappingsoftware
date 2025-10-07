@@ -1,7 +1,7 @@
 import axios from 'axios'
 
+// Use environment variable with fallback to production URL
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://territorymapperbackend.onrender.com'
-// const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 
 export const api = axios.create({
   baseURL: API_BASE_URL,

@@ -14,6 +14,7 @@ import { SaveIcon } from '@/components/ui/save-icon'
 import { ColorPicker } from '@/components/ui/color-picker'
 import { useSaveLayerOpacity } from '@/hooks/use-layer-opacity'
 import { toast } from 'sonner'
+import api from '@/lib/api'
 
 interface MapControlsProps {
   layers: MapLayer[]
@@ -21,6 +22,7 @@ interface MapControlsProps {
   onLayerOpacityChange: (id: string, opacity: number) => void
   onLayerColorChange: (id: string, color: string) => void
   onTerritoryColorChange?: (territoryId: string, color: string) => void
+  onTerritoryOpacityChange?: (territoryId: string, opacity: number) => void
   drawingTool: DrawingTool
   onDrawingToolChange: (tool: DrawingTool) => void
   onExport: () => void
@@ -39,6 +41,7 @@ export function MapControls({
   onLayerOpacityChange,
   onLayerColorChange,
   onTerritoryColorChange,
+  onTerritoryOpacityChange,
   drawingTool,
   onDrawingToolChange,
   onExport,
@@ -67,6 +70,29 @@ export function MapControls({
     } catch (error) {
       toast.error('❌ Failed to save default settings')
       console.error('Error saving layer settings:', error)
+    }
+  }
+
+  const handleSaveTerritoryStyle = async (territoryId: string, opacity: number, color: string) => {
+    console.log(`🔧 Saving individual territory style:`, { territoryId, opacity, color })
+    try {
+      // Use the territory styling API endpoint
+      const response = await api.put(`/api/jeddah/territories/${territoryId}/style`, {
+        color,
+        opacity,
+        stroke_color: color, // Use same color for stroke
+        stroke_width: 2.0,
+        is_visible: true
+      })
+      
+      if (response.data.success) {
+        toast.success(`✅ Territory style saved: ${(opacity * 100).toFixed(0)}% opacity, ${color} color`)
+      } else {
+        throw new Error('Failed to save territory style')
+      }
+    } catch (error) {
+      console.error('❌ Failed to save territory style:', error)
+      toast.error('Failed to save territory style')
     }
   }
   if (isLoading) {
@@ -182,11 +208,17 @@ export function MapControls({
                   </div>
                 )}
 
-                {/* Individual territory controls for territories layer - Compact QGIS style */}
-                {layer.type === 'territories' && layer.data?.features && (
-                  <div className="pl-8 space-y-1">
-                    {layer.data.features.map((territory: any, index: number) => (
-                      <div key={territory.id || index} className="flex items-center space-x-2 py-0.5">
+                {/* Individual territory controls for territories layer - Smart display logic */}
+                {layer.type === 'territories' && layer.data?.features && (() => {
+                  const territoryCount = layer.data.features.length
+                  const maxIndividualTerritories = 7
+                  
+                  // Only show individual controls if 7 or fewer territories, otherwise show default layer controls
+                  if (territoryCount <= maxIndividualTerritories) {
+                    return (
+                      <div className="pl-8 space-y-1">
+                        {layer.data.features.map((territory: any, index: number) => (
+                      <div key={territory.id || index} className="flex items-center space-x-2 py-0.5 min-w-0">
                         {/* Tiny Territory Color Box - QGIS style */}
                         <ColorPicker
                           value={territory.properties?.color || '#3b82f6'}
@@ -204,7 +236,7 @@ export function MapControls({
                         />
                         
                         {/* Compact Territory Name */}
-                        <span className="text-xs text-foreground min-w-0 flex-1 truncate">
+                        <span className="text-xs text-foreground min-w-0 flex-shrink-0 w-20 truncate">
                           {territory.properties?.name || `T${index + 1}`}
                           {territory.properties?.customer_count && (
                             <span className="text-xs text-muted-foreground ml-1">
@@ -213,27 +245,23 @@ export function MapControls({
                           )}
                         </span>
                         
-                        {/* Tiny Opacity Slider */}
-                        <div className="flex items-center space-x-1 flex-shrink-0">
+                        {/* Expandable Opacity Slider */}
+                        <div className="flex items-center space-x-1 flex-shrink-0 flex-1">
                           <Slider
                             min={0}
                             max={1}
                             step={0.1}
                             value={[territory.properties?.opacity || 0.7]}
                             onValueChange={([value]) => {
-                              console.log(`🔧 Territory opacity change: ${territory.id} -> ${value}`)
-                              // Update the territory opacity in the layer data
-                              const updatedFeatures = layer.data.features.map((f: any) => 
-                                f.id === territory.id 
-                                  ? { ...f, properties: { ...f.properties, opacity: value } }
-                                  : f
-                              )
-                              // Trigger layer update
-                              onLayerOpacityChange(layer.id, value)
+                              console.log(`🔧 Individual territory opacity change: ${territory.id} -> ${value}`)
+                              // Just trigger the opacity change handler - let the parent handle the map update efficiently
+                              if (onTerritoryOpacityChange) {
+                                onTerritoryOpacityChange(territory.id, value)
+                              }
                             }}
-                            className="w-12 h-2"
+                            className="flex-1 h-2 min-w-16"
                           />
-                          <span className="text-xs text-muted-foreground w-6 text-center">
+                          <span className="text-xs text-muted-foreground w-8 text-center flex-shrink-0">
                             {Math.round((territory.properties?.opacity || 0.7) * 100)}%
                           </span>
                         </div>
@@ -250,7 +278,7 @@ export function MapControls({
                             })
                             try {
                               // Save individual territory style to backend
-                              await handleSaveAsDefault(layer.id, territory.properties?.opacity || 0.7, territory.properties?.color || '#3b82f6')
+                              await handleSaveTerritoryStyle(territory.id, territory.properties?.opacity || 0.7, territory.properties?.color || '#3b82f6')
                               console.log(`✅ Territory ${territory.id} style saved successfully`)
                             } catch (error) {
                               console.error(`❌ Failed to save territory ${territory.id} style:`, error)
@@ -268,8 +296,19 @@ export function MapControls({
                         </Button>
                       </div>
                     ))}
+                      </div>
+                    )
+                  } else {
+                    // Show default layer controls for more than 7 territories
+                    return (
+                      <div className="pl-8 space-y-1">
+                        <div className="text-xs text-muted-foreground">
+                          {territoryCount} territories - Use layer controls above for styling
+                        </div>
               </div>
-                )}
+                    )
+                  }
+                })()}
               </>
             )}
           </div>

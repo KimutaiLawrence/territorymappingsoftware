@@ -350,6 +350,8 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
   const [locationDrawType, setLocationDrawType] = useState<'current' | 'potential'>('current')
   const [mapZoom, setMapZoom] = useState<number>(10)
   const [showAllAdminBoundaries, setShowAllAdminBoundaries] = useState<boolean>(false)
+  const [panelWidth, setPanelWidth] = useState(320) // Default width for map layers panel
+  const [isResizing, setIsResizing] = useState(false)
 
   const queryClient = useQueryClient()
   
@@ -1957,6 +1959,95 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     }
   }
 
+  const handleTerritoryOpacityChange = (territoryId: string, opacity: number) => {
+    console.log(`🔧 Individual territory opacity change: ${territoryId} -> ${opacity}`)
+    
+    // Update the layers state immediately for UI feedback
+    setLayersConfigState(prev => prev.map(layer => {
+      if (layer.type === 'territories' && (layer as any).data?.features) {
+        return {
+          ...layer,
+          data: {
+            ...(layer as any).data,
+            features: (layer as any).data.features.map((f: any) => 
+              f.id === territoryId 
+                ? { ...f, properties: { ...f.properties, opacity } }
+                : f
+            )
+          }
+        }
+      }
+      return layer
+    }))
+    
+    // Update the map source with debouncing for better performance
+    requestAnimationFrame(() => {
+      if (mapRef.current) {
+        const territoriesLayer = layers.find(l => l.type === 'territories')
+        if ((territoriesLayer as any)?.data?.features) {
+          const source = mapRef.current.getSource('territories') as any
+          if (source && source.setData) {
+            // Update only the specific territory's opacity
+            const updatedData = {
+              ...(territoriesLayer as any).data,
+              features: (territoriesLayer as any).data.features.map((f: any) => 
+                f.id === territoryId 
+                  ? { ...f, properties: { ...f.properties, opacity } }
+                  : f
+              )
+            }
+            source.setData(updatedData)
+            console.log(`✅ Updated territory ${territoryId} opacity to ${opacity} with live preview`)
+          }
+        }
+      }
+    })
+  }
+
+  // Panel resize handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsResizing(true)
+  }
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isResizing) return
+    
+    const newWidth = window.innerWidth - e.clientX
+    const minWidth = 280
+    const maxWidth = 600
+    
+    if (newWidth >= minWidth && newWidth <= maxWidth) {
+      setPanelWidth(newWidth)
+    }
+  }, [isResizing])
+
+  const handleMouseUp = useCallback(() => {
+    setIsResizing(false)
+  }, [])
+
+  // Add event listeners for resizing
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+    } else {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [isResizing, handleMouseMove, handleMouseUp])
+
   const handleSaveFeature = () => {
     if (!editingFeature) {
       console.error('Save clicked, but no feature is in editing state.')
@@ -1998,10 +2089,12 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
 
     if (featureType === 'territory') {
       // Save territory (including generated territories)
+      // Use correct field name based on organization
+      const geometryField = userOrg === 'jeddah' ? 'geometry' : 'geom'
       updateTerritoryMutation.mutate({
         id: originalId,
         data: { 
-          geom: featureToSave.geometry as Polygon | MultiPolygon,
+          [geometryField]: featureToSave.geometry as Polygon | MultiPolygon,
           updated_at: new Date().toISOString()
         }
       }, {
@@ -2017,10 +2110,12 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
       })
     } else if (featureType === 'location') {
       // Save location
+      // Use correct field name based on organization
+      const geometryField = userOrg === 'jeddah' ? 'geometry' : 'geom'
       updateLocationMutation.mutate({
         id: originalId,
         data: { 
-          geom: featureToSave.geometry as Point,
+          [geometryField]: featureToSave.geometry as Point,
           updated_at: new Date().toISOString()
         },
         type: featureToSave.properties?.locationType || 'current',
@@ -2286,6 +2381,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
                   onLayerOpacityChange={handleLayerOpacityChange}
                   onLayerColorChange={handleLayerColorChange}
                   onTerritoryColorChange={handleTerritoryColorChange}
+                  onTerritoryOpacityChange={handleTerritoryOpacityChange}
                   drawingTool={drawingTool}
                   onDrawingToolChange={handleDrawingToolChange}
                   onExport={handleExport}
@@ -2300,13 +2396,23 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
           </Drawer>
         </div>
       </div>
-      <div className="w-80 border-l bg-background/95 hidden md:block">
+      <div 
+        className="border-l bg-background/95 hidden md:block relative"
+        style={{ width: `${panelWidth}px` }}
+      >
+        {/* Resize handle */}
+        <div
+          className="absolute left-0 top-0 bottom-0 w-1 bg-border hover:bg-primary/50 cursor-col-resize z-10"
+          onMouseDown={handleMouseDown}
+        />
+        
         <MapControls
           layers={layers}
           onLayerToggle={handleLayerToggle}
           onLayerOpacityChange={handleLayerOpacityChange}
           onLayerColorChange={handleLayerColorChange}
           onTerritoryColorChange={handleTerritoryColorChange}
+          onTerritoryOpacityChange={handleTerritoryOpacityChange}
           drawingTool={drawingTool}
           onDrawingToolChange={handleDrawingToolChange}
           onExport={handleExport}

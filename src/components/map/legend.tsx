@@ -100,26 +100,55 @@ export function Legend({ layers }: LegendProps) {
                     <Square className="h-3 w-3 text-blue-500 fill-current opacity-50" />
                     <span className="text-xs font-medium">Territories</span>
                   </div>
-                  {/* Show individual territories if available */}
-                  {layer.data?.features?.map((feature: any, index: number) => (
-                    <div key={feature.id || index} className="flex items-center space-x-2 ml-4">
-                      <div
-                        className="w-3 h-3 rounded border"
-                        style={{ 
-                          backgroundColor: feature.properties?.color || '#3b82f6',
-                          opacity: feature.properties?.opacity || 0.7
-                        }}
-                      />
-                      <span className="text-xs">
-                        {feature.properties?.name || `Territory ${index + 1}`}
-                        {feature.properties?.customer_count && (
-                          <span className="text-gray-500 ml-1">
-                            ({feature.properties.customer_count})
+                  
+                  {/* Smart territory display logic - Show individual territories if ≤7, default layer if >7 */}
+                  {(() => {
+                    const territoryCount = layer.data?.features?.length || 0
+                    const maxIndividualTerritories = 7
+                    
+                    // If 7 or fewer territories, show individual territories
+                    if (territoryCount <= maxIndividualTerritories && territoryCount > 0) {
+                      return (
+                        <div className="space-y-1">
+                          {layer.data?.features?.map((feature: any, index: number) => (
+                            <div key={feature.id || index} className="flex items-center space-x-2 ml-4">
+                              <div
+                                className="w-3 h-3 rounded border"
+                                style={{ 
+                                  backgroundColor: feature.properties?.color || '#3b82f6',
+                                  opacity: feature.properties?.opacity || 0.7
+                                }}
+                              />
+                              <span className="text-xs">
+                                {feature.properties?.name || `Territory ${index + 1}`}
+                                {feature.properties?.customer_count && (
+                                  <span className="text-gray-500 ml-1">
+                                    ({feature.properties.customer_count})
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    } else {
+                      // If more than 7 territories, show default layer only
+                      return (
+                        <div className="flex items-center space-x-2 ml-4">
+                          <div
+                            className="w-3 h-3 rounded border"
+                            style={{ 
+                              backgroundColor: layer.color || '#3b82f6',
+                              opacity: layer.opacity || 0.7
+                            }}
+                          />
+                          <span className="text-xs">
+                            {territoryCount > 0 ? `${territoryCount} Territories` : 'Territories'}
                           </span>
-                        )}
-                      </span>
-                    </div>
-                  ))}
+                        </div>
+                      )
+                    }
+                  })()}
                 </div>
               )}
               {layer.type === 'customer-locations' && (
