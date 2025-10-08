@@ -3061,16 +3061,6 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
               </div>
             )}
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setMapTitle('Tree Planting Potential - Majmaah University')}
-                className="text-gray-500 hover:text-blue-600 text-sm px-3 py-2 rounded-lg hover:bg-blue-50 transition-all duration-200 font-medium"
-                title="Reset to default title"
-              >
-                Reset
-              </button>
-              {saveMapTitleMutation.isPending && (
-                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-              )}
               <div className="text-xs text-gray-500 opacity-0 hover:opacity-100 transition-opacity duration-200 font-medium">
                 {isEditingTitle ? "Press Enter to save, Escape to cancel" : "Double-click to edit, drag to move"}
               </div>
