@@ -816,10 +816,40 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
       ]
     } else if (userOrg === 'urimpact') {
       // Urimpact organization - show Saudi Arabia boundary data and imported GeoJSON
-      return [
+      const layers = [
         { id: 'admin-boundaries', name: 'Saudi Arabia Boundaries', type: 'admin-boundaries', visible: true, opacity: getOpacity('admin-boundaries', 0.8), color: getColor('admin-boundaries', '#3b82f6') },
-        { id: 'imported-geojson', name: 'Planting Areas', type: 'imported-geojson', visible: true, opacity: getOpacity('imported-geojson', 0.7), color: getColor('imported-geojson', '#8b5cf6') },
       ]
+      
+      // Check if we have planting areas data and if there are 7 or fewer features
+      if (urimpactImportedGeoJSON && urimpactImportedGeoJSON.features.length > 0) {
+        if (urimpactImportedGeoJSON.features.length <= 7) {
+          // Show individual planting areas
+          urimpactImportedGeoJSON.features.forEach((feature, index) => {
+            const zoneName = feature.properties?.zone_name || feature.properties?.name || `Planting Area ${index + 1}`
+            layers.push({
+              id: `planting-area-${index}`,
+              name: zoneName,
+              type: 'imported-geojson',
+              visible: true,
+              opacity: getOpacity(`planting-area-${index}`, 0.7),
+              color: getColor(`planting-area-${index}`, feature.properties?.color || '#8b5cf6'),
+              data: { type: 'FeatureCollection', features: [feature] }
+            })
+          })
+        } else {
+          // Show as single layer for more than 7 features
+          layers.push({
+            id: 'imported-geojson',
+            name: 'Planting Areas',
+            type: 'imported-geojson',
+            visible: true,
+            opacity: getOpacity('imported-geojson', 0.7),
+            color: getColor('imported-geojson', '#8b5cf6')
+          })
+        }
+      }
+      
+      return layers
     } else if (userOrg === 'hooptrailer') {
       // Hooptrailer organization - show only US data
       return [
@@ -1067,6 +1097,13 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
           case 'imported-geojson':
             data = urimpactImportedGeoJSON || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
             console.log(`Urimpact imported GeoJSON data:`, data)
+            break
+          default:
+            // Handle individual planting areas (planting-area-0, planting-area-1, etc.)
+            if (layer.id.startsWith('planting-area-')) {
+              data = layer.data || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+              console.log(`Urimpact individual planting area data for ${layer.id}:`, data)
+            }
             break
         }
       } else {

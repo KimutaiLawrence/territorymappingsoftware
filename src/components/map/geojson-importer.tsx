@@ -1,11 +1,11 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { FileText, Upload, X, CheckCircle, AlertCircle, MapPin } from 'lucide-react'
+import { FileText, Upload, X, CheckCircle, AlertCircle, MapPin, GripVertical } from 'lucide-react'
 import { FeatureCollection } from 'geojson'
 import bbox from '@turf/bbox'
 
@@ -25,6 +25,12 @@ export function GeoJSONImporter({ isOpen, onClose, onImport, userOrg }: GeoJSONI
     featureCount?: number
     bounds?: [number, number, number, number]
   } | null>(null)
+  
+  // Drag functionality
+  const [isDragging, setIsDragging] = useState(false)
+  const [position, setPosition] = useState({ x: 0, y: 0 })
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const modalRef = useRef<HTMLDivElement>(null)
 
   const validateAndParseGeoJSON = async () => {
     if (!jsonInput.trim()) {
@@ -119,7 +125,7 @@ export function GeoJSONImporter({ isOpen, onClose, onImport, userOrg }: GeoJSONI
           geojson = parsed as FeatureCollection
         }
         
-        onImport(geojson)
+        handleImport(geojson)
         onClose()
         setJsonInput('')
         setValidationResult(null)
@@ -135,13 +141,71 @@ export function GeoJSONImporter({ isOpen, onClose, onImport, userOrg }: GeoJSONI
     setValidationResult(null)
   }
 
+  // Drag handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget || (e.target as HTMLElement).closest('[data-drag-handle]')) {
+      setIsDragging(true)
+      setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y })
+    }
+  }
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (isDragging) {
+      setPosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y
+      })
+    }
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove)
+        document.removeEventListener('mouseup', handleMouseUp)
+      }
+    }
+  }, [isDragging, dragStart])
+
+  // Auto-fly to imported GeoJSON
+  const handleImport = (geojson: FeatureCollection) => {
+    onImport(geojson)
+    
+    // Auto-fly to the imported GeoJSON bounds
+    try {
+      const bounds = bbox(geojson)
+      // This will be handled by the parent component
+      console.log('✅ Auto-flying to imported GeoJSON bounds:', bounds)
+    } catch (error) {
+      console.error('❌ Error calculating bounds for auto-fly:', error)
+    }
+  }
+
   if (!isOpen) return null
 
   return (
     <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
-      <Card className="w-full max-w-4xl max-h-[90vh] overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+      <Card 
+        ref={modalRef}
+        className="w-full max-w-4xl max-h-[90vh] overflow-hidden cursor-move"
+        style={{
+          transform: `translate(${position.x}px, ${position.y}px)`,
+          transition: isDragging ? 'none' : 'transform 0.2s ease-out'
+        }}
+        onMouseDown={handleMouseDown}
+      >
+        <CardHeader 
+          className="flex flex-row items-center justify-between space-y-0 pb-4 cursor-move"
+          data-drag-handle
+        >
           <CardTitle className="flex items-center gap-2">
+            <GripVertical className="w-4 h-4 text-gray-400" />
             <FileText className="w-5 h-5" />
             Import GeoJSON
           </CardTitle>

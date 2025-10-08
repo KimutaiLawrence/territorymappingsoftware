@@ -125,16 +125,6 @@ export function MapControls({
             <CardDescription>Toggle layers to show or hide them.</CardDescription>
           </div>
           <div className="flex gap-2">
-            {userOrg === 'urimpact' && onImportGeoJSON && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onImportGeoJSON}
-              >
-                <FileText className="h-4 w-4 mr-1" />
-                JSON
-              </Button>
-            )}
             <Button
               variant="outline"
               size="sm"
@@ -348,6 +338,21 @@ export function MapControls({
                 }
               </p>
             </div>
+          </div>
+        )}
+        
+        {/* JSON Import Button for Urimpact users - at bottom */}
+        {userOrg === 'urimpact' && onImportGeoJSON && (
+          <div className="pt-4 border-t">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onImportGeoJSON}
+              className="w-full"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Import GeoJSON
+            </Button>
           </div>
         )}
       </CardContent>
