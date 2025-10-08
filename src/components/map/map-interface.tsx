@@ -818,7 +818,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
       // Urimpact organization - show Saudi Arabia boundary data and imported GeoJSON
       return [
         { id: 'admin-boundaries', name: 'Saudi Arabia Boundaries', type: 'admin-boundaries', visible: true, opacity: getOpacity('admin-boundaries', 0.8), color: getColor('admin-boundaries', '#3b82f6') },
-        { id: 'imported-geojson', name: 'Imported GeoJSON', type: 'imported-geojson', visible: true, opacity: getOpacity('imported-geojson', 0.7), color: getColor('imported-geojson', '#8b5cf6') },
+        { id: 'imported-geojson', name: 'Planting Areas', type: 'imported-geojson', visible: true, opacity: getOpacity('imported-geojson', 0.7), color: getColor('imported-geojson', '#8b5cf6') },
       ]
     } else if (userOrg === 'hooptrailer') {
       // Hooptrailer organization - show only US data
@@ -1769,6 +1769,40 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
                 map.addLayer({ id: layer.id, type: 'line', source: sourceId, paint: { 'line-color': layer.color || '#38bdf8', 'line-width': 1.5, 'line-opacity': layer.opacity } })
             } else if (layer.type === 'roads') {
                 map.addLayer({ id: layer.id, type: 'line', source: sourceId, paint: { 'line-color': layer.color || '#6b7280', 'line-width': 1, 'line-opacity': layer.opacity } })
+            } else if (layer.type === 'imported-geojson') {
+                console.log(`Creating imported-geojson layer with opacity: ${layer.opacity}, color: ${layer.color}`)
+                // Create fill layer for polygons
+                map.addLayer({ 
+                    id: layer.id, 
+                    type: 'fill', 
+                    source: sourceId, 
+                    paint: { 
+                        'fill-color': [
+                            'case',
+                            ['has', 'color'],
+                            ['get', 'color'],
+                            layer.color || '#8b5cf6'  // Fallback to layer color or purple
+                        ],
+                        'fill-opacity': layer.opacity 
+                    } 
+                })
+                // Create outline layer
+                map.addLayer({ 
+                    id: `${layer.id}-outline`, 
+                    type: 'line', 
+                    source: sourceId, 
+                    paint: { 
+                        'line-color': [
+                            'case',
+                            ['has', 'color'],
+                            ['get', 'color'],
+                            layer.color || '#6d28d9'  // Darker purple for outline
+                        ],
+                        'line-width': 2, 
+                        'line-opacity': layer.opacity 
+                    } 
+                })
+                console.log(`✅ Created imported-geojson layer with individual colors`)
             }
         }
         
@@ -2565,23 +2599,52 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
                     <X className="w-4 h-4 mr-2" />
                     Cancel
                   </Button>
-                  <Button
-                    onClick={handleSaveFeature}
-                    disabled={isSaving}
-                    className="bg-green-600 hover:bg-green-700 text-white px-4"
-                  >
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Save Changes
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={handleSaveFeature}
+                      disabled={isSaving}
+                      className="bg-green-600 hover:bg-green-700 text-white px-4"
+                    >
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          Save Changes
+                        </>
+                      )}
+                    </Button>
+                    
+                    {/* Three-dot menu for additional actions */}
+                    <div className="relative">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="p-2"
+                        onClick={() => {
+                          // Zoom to the edited feature
+                          if (editingFeature && map) {
+                            const bounds = bbox(editingFeature.geometry)
+                            map.fitBounds([
+                              [bounds[0], bounds[1]],
+                              [bounds[2], bounds[3]]
+                            ], {
+                              padding: 50,
+                              maxZoom: 16
+                            })
+                          }
+                        }}
+                        title="Zoom to feature"
+                      >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                        </svg>
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
