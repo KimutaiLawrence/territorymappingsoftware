@@ -6,6 +6,7 @@ import { MapContainer } from './map-container'
 import { MapControls } from './map-controls'
 import { TerritoryGenerator } from './territory-generator'
 import { JeddahTerritoryGenerator } from './jeddah-territory-generator'
+import { GeoJSONImporter } from './geojson-importer'
 import { Territory, Location, MapLayer, Basemap, DrawingTool } from '@/types'
 import {
   useUSStates,
@@ -622,25 +623,27 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     staleTime: 1000 * 60 * 5, // 5 minutes
   })
   
-  const { data: urimpactTerritories, isLoading: urimpactTerritoriesLoading } = useQuery({
-    queryKey: ['urimpact-territories'],
-    queryFn: async () => {
-      const response = await api.get('/api/urimpact/territories')
-      return response.data || { type: 'FeatureCollection', features: [] }
-    },
-    enabled: userOrg === 'urimpact',
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  })
+  // Urimpact imported GeoJSON data
+  const [urimpactImportedGeoJSON, setUrimpactImportedGeoJSON] = useState<FeatureCollection | null>(null)
+  const [isGeoJSONImporterOpen, setIsGeoJSONImporterOpen] = useState(false)
   
-  const { data: urimpactLocations, isLoading: urimpactLocationsLoading } = useQuery({
-    queryKey: ['urimpact-locations'],
-    queryFn: async () => {
-      const response = await api.get('/api/urimpact/locations')
-      return response.data || { type: 'FeatureCollection', features: [] }
-    },
-    enabled: userOrg === 'urimpact',
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  })
+  // Load map.geojson data for Urimpact users
+  useEffect(() => {
+    if (userOrg === 'urimpact' && !urimpactImportedGeoJSON) {
+      // Load the map.geojson data
+      fetch('/api/urimpact/map-geojson')
+        .then(response => response.json())
+        .then(data => {
+          if (data && data.type === 'FeatureCollection') {
+            setUrimpactImportedGeoJSON(data)
+            console.log('✅ Loaded Urimpact map.geojson data:', data)
+          }
+        })
+        .catch(error => {
+          console.error('❌ Failed to load Urimpact map.geojson:', error)
+        })
+    }
+  }, [userOrg, urimpactImportedGeoJSON])
   
   // Urimpact CRUD operations
   const createUrimpactAdminBoundary = useMutation({
@@ -735,6 +738,31 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     },
   })
   
+  // Handle GeoJSON import
+  const handleImportGeoJSON = (geojson: FeatureCollection) => {
+    setUrimpactImportedGeoJSON(geojson)
+    console.log('✅ Imported GeoJSON:', geojson)
+    
+    // Fly to the imported GeoJSON bounds
+    if (geojson.features.length > 0) {
+      try {
+        const bounds = bbox(geojson)
+        const map = mapRef.current
+        if (map) {
+          map.fitBounds([
+            [bounds[0], bounds[1]],
+            [bounds[2], bounds[3]]
+          ] as [[number, number], [number, number]], {
+            padding: 50,
+            duration: 1000
+          })
+        }
+      } catch (error) {
+        console.error('Error calculating bounds for imported GeoJSON:', error)
+      }
+    }
+  }
+  
   const { data: customerLocations, isLoading: customerLocationsLoading } = useQuery({
     queryKey: ['map-customer-locations'],
     queryFn: async () => {
@@ -787,11 +815,10 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         { id: 'customer-locations', name: 'Customer Locations', type: 'customer-locations', visible: true, opacity: getOpacity('customer-locations', 1), color: getColor('customer-locations', '#ef4444') },
       ]
     } else if (userOrg === 'urimpact') {
-      // Urimpact organization - show Saudi Arabia boundary data and user-drawn features
+      // Urimpact organization - show Saudi Arabia boundary data and imported GeoJSON
       return [
         { id: 'admin-boundaries', name: 'Saudi Arabia Boundaries', type: 'admin-boundaries', visible: true, opacity: getOpacity('admin-boundaries', 0.8), color: getColor('admin-boundaries', '#3b82f6') },
-        { id: 'territories', name: 'Territories', type: 'territories', visible: true, opacity: getOpacity('territories', 0.5), color: getColor('territories', '#22c55e') },
-        { id: 'customer-locations', name: 'Customer Locations', type: 'customer-locations', visible: true, opacity: getOpacity('customer-locations', 1), color: getColor('customer-locations', '#ef4444') },
+        { id: 'imported-geojson', name: 'Imported GeoJSON', type: 'imported-geojson', visible: true, opacity: getOpacity('imported-geojson', 0.7), color: getColor('imported-geojson', '#8b5cf6') },
       ]
     } else if (userOrg === 'hooptrailer') {
       // Hooptrailer organization - show only US data
@@ -1030,20 +1057,16 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
             break
         }
       } else if (userOrg === 'urimpact') {
-        // For Urimpact users, use Saudi Arabia boundary data and user-drawn features
+        // For Urimpact users, use Saudi Arabia boundary data and imported GeoJSON
         console.log(`Loading Urimpact data for layer: ${layer.id}`)
         switch (layer.id) {
           case 'admin-boundaries':
             data = (urimpactAdminBoundaries as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
             console.log(`Urimpact admin boundaries data:`, data)
             break
-          case 'territories':
-            data = (urimpactTerritories as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
-            console.log(`Urimpact territories data:`, data)
-            break
-          case 'customer-locations':
-            data = (urimpactLocations as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
-            console.log(`Urimpact locations data:`, data)
+          case 'imported-geojson':
+            data = urimpactImportedGeoJSON || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+            console.log(`Urimpact imported GeoJSON data:`, data)
             break
         }
       } else {
@@ -1099,8 +1122,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     roads,
     adminBoundaries,
     urimpactAdminBoundaries,
-    urimpactTerritories,
-    urimpactLocations,
+    urimpactImportedGeoJSON,
     customerLocations,
     populationAnalysisLayer,
     expansionAnalysisLayer,
@@ -2586,6 +2608,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
                   onDrawingToolChange={handleDrawingToolChange}
                   onExport={handleExport}
                   onHome={flyToDefaultView}
+                  onImportGeoJSON={() => setIsGeoJSONImporterOpen(true)}
                   isLoading={isLoading}
                   userOrg={userOrg}
                   showAllAdminBoundaries={showAllAdminBoundaries}
@@ -2617,6 +2640,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
           onDrawingToolChange={handleDrawingToolChange}
           onExport={handleExport}
           onHome={flyToDefaultView}
+          onImportGeoJSON={() => setIsGeoJSONImporterOpen(true)}
           className="m-4"
           isLoading={isLoading}
           userOrg={userOrg}
@@ -2657,6 +2681,14 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
           onTerritoriesGenerated={handleTerritoriesGenerated}
         />
       )}
+      
+      {/* GeoJSON Importer for Urimpact users */}
+      <GeoJSONImporter
+        isOpen={isGeoJSONImporterOpen}
+        onClose={() => setIsGeoJSONImporterOpen(false)}
+        onImport={handleImportGeoJSON}
+        userOrg={userOrg}
+      />
     </div>
   )
 }

@@ -6,7 +6,7 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { MapLayer, DrawingTool } from '@/types'
 import { Button } from '@/components/ui/button'
-import { Download, Layers, Pipette, Trash2, Home } from 'lucide-react'
+import { Download, Layers, Pipette, Trash2, Home, FileText } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { Slider } from '@/components/ui/slider'
@@ -27,6 +27,7 @@ interface MapControlsProps {
   onDrawingToolChange: (tool: DrawingTool) => void
   onExport: () => void
   onHome: () => void
+  onImportGeoJSON?: () => void
   className?: string
   isLoading: boolean
   // Jeddah-specific props
@@ -46,6 +47,7 @@ export function MapControls({
   onDrawingToolChange,
   onExport,
   onHome,
+  onImportGeoJSON,
   className,
   isLoading,
   userOrg,
@@ -122,15 +124,26 @@ export function MapControls({
             <CardTitle>Map Layers</CardTitle>
             <CardDescription>Toggle layers to show or hide them.</CardDescription>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onHome}
-            className="ml-2"
-          >
-            <Home className="h-4 w-4 mr-1" />
-            Home
-          </Button>
+          <div className="flex gap-2">
+            {userOrg === 'urimpact' && onImportGeoJSON && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onImportGeoJSON}
+              >
+                <FileText className="h-4 w-4 mr-1" />
+                JSON
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onHome}
+            >
+              <Home className="h-4 w-4 mr-1" />
+              Home
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="flex-1 space-y-4 overflow-y-auto">
