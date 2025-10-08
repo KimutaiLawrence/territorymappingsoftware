@@ -56,6 +56,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         { name: 'Customer Locations', href: '/locations', icon: MapPin, color: 'text-green-500' },
         { name: 'Datasets', href: '/datasets', icon: Database },
       ]
+    } else if (userOrg === 'urimpact') {
+      return [
+        { name: 'Map', href: '/dashboard', icon: Map },
+        { name: 'Saudi Arabia Boundaries', href: '/territories', icon: Globe2, color: 'text-sky-500' },
+        { name: 'Datasets', href: '/datasets', icon: Database },
+      ]
     } else if (userOrg === 'hooptrailer') {
       return [
         { name: 'Map', href: '/dashboard', icon: Map },

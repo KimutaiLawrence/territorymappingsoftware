@@ -49,7 +49,7 @@ import { useLayerOpacitySettings } from '@/hooks/use-layer-opacity'
 import { toast } from 'sonner'
 import { PrintComposer } from './print-composer'
 import { exportMapAsPDF } from '@/lib/pdf-export'
-import { useQueryClient, useQuery } from '@tanstack/react-query'
+import { useQueryClient, useQuery, useMutation } from '@tanstack/react-query'
 import { ProgressIndicator } from '@/components/ui/progress-indicator'
 import { useAuth } from '@/contexts/auth-context'
 import api from '@/lib/api'
@@ -611,15 +611,128 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     staleTime: 1000 * 60 * 5, // 5 minutes
   })
   
-  // For Urimpact users, use Saudi Arabia specific endpoint
+  // For Urimpact users, use Urimpact-specific endpoints
   const { data: urimpactAdminBoundaries, isLoading: urimpactAdminBoundariesLoading } = useQuery({
     queryKey: ['urimpact-admin-boundaries'],
     queryFn: async () => {
-      const response = await api.get('/api/gisdata/administrative?format=geojson&per_page=20')
+      const response = await api.get('/api/urimpact/admin-boundaries')
       return response.data || { type: 'FeatureCollection', features: [] }
     },
     enabled: userOrg === 'urimpact',
     staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+  
+  const { data: urimpactTerritories, isLoading: urimpactTerritoriesLoading } = useQuery({
+    queryKey: ['urimpact-territories'],
+    queryFn: async () => {
+      const response = await api.get('/api/urimpact/territories')
+      return response.data || { type: 'FeatureCollection', features: [] }
+    },
+    enabled: userOrg === 'urimpact',
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+  
+  const { data: urimpactLocations, isLoading: urimpactLocationsLoading } = useQuery({
+    queryKey: ['urimpact-locations'],
+    queryFn: async () => {
+      const response = await api.get('/api/urimpact/locations')
+      return response.data || { type: 'FeatureCollection', features: [] }
+    },
+    enabled: userOrg === 'urimpact',
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+  
+  // Urimpact CRUD operations
+  const createUrimpactAdminBoundary = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await api.post('/api/urimpact/admin-boundaries', data)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['urimpact-admin-boundaries'] })
+    },
+  })
+  
+  const updateUrimpactAdminBoundary = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const response = await api.put(`/api/urimpact/admin-boundaries/${id}`, data)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['urimpact-admin-boundaries'] })
+    },
+  })
+  
+  const deleteUrimpactAdminBoundary = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await api.delete(`/api/urimpact/admin-boundaries/${id}`)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['urimpact-admin-boundaries'] })
+    },
+  })
+  
+  // Urimpact Territory CRUD operations
+  const createUrimpactTerritory = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await api.post('/api/urimpact/territories', data)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['urimpact-territories'] })
+    },
+  })
+  
+  const updateUrimpactTerritory = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const response = await api.put(`/api/urimpact/territories/${id}`, data)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['urimpact-territories'] })
+    },
+  })
+  
+  const deleteUrimpactTerritory = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await api.delete(`/api/urimpact/territories/${id}`)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['urimpact-territories'] })
+    },
+  })
+  
+  // Urimpact Location CRUD operations
+  const createUrimpactLocation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await api.post('/api/urimpact/locations', data)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['urimpact-locations'] })
+    },
+  })
+  
+  const updateUrimpactLocation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const response = await api.put(`/api/urimpact/locations/${id}`, data)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['urimpact-locations'] })
+    },
+  })
+  
+  const deleteUrimpactLocation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await api.delete(`/api/urimpact/locations/${id}`)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['urimpact-locations'] })
+    },
   })
   
   const { data: customerLocations, isLoading: customerLocationsLoading } = useQuery({
@@ -674,9 +787,11 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         { id: 'customer-locations', name: 'Customer Locations', type: 'customer-locations', visible: true, opacity: getOpacity('customer-locations', 1), color: getColor('customer-locations', '#ef4444') },
       ]
     } else if (userOrg === 'urimpact') {
-      // Urimpact organization - show only Saudi Arabia boundary data
+      // Urimpact organization - show Saudi Arabia boundary data and user-drawn features
       return [
         { id: 'admin-boundaries', name: 'Saudi Arabia Boundaries', type: 'admin-boundaries', visible: true, opacity: getOpacity('admin-boundaries', 0.8), color: getColor('admin-boundaries', '#3b82f6') },
+        { id: 'territories', name: 'Territories', type: 'territories', visible: true, opacity: getOpacity('territories', 0.5), color: getColor('territories', '#22c55e') },
+        { id: 'customer-locations', name: 'Customer Locations', type: 'customer-locations', visible: true, opacity: getOpacity('customer-locations', 1), color: getColor('customer-locations', '#ef4444') },
       ]
     } else if (userOrg === 'hooptrailer') {
       // Hooptrailer organization - show only US data
@@ -915,12 +1030,20 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
             break
         }
       } else if (userOrg === 'urimpact') {
-        // For Urimpact users, use Saudi Arabia boundary data only
+        // For Urimpact users, use Saudi Arabia boundary data and user-drawn features
         console.log(`Loading Urimpact data for layer: ${layer.id}`)
         switch (layer.id) {
           case 'admin-boundaries':
             data = (urimpactAdminBoundaries as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
             console.log(`Urimpact admin boundaries data:`, data)
+            break
+          case 'territories':
+            data = (urimpactTerritories as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+            console.log(`Urimpact territories data:`, data)
+            break
+          case 'customer-locations':
+            data = (urimpactLocations as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+            console.log(`Urimpact locations data:`, data)
             break
         }
       } else {
@@ -976,6 +1099,8 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     roads,
     adminBoundaries,
     urimpactAdminBoundaries,
+    urimpactTerritories,
+    urimpactLocations,
     customerLocations,
     populationAnalysisLayer,
     expansionAnalysisLayer,
@@ -2122,47 +2247,89 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
 
     if (featureType === 'territory') {
       // Save territory (including generated territories)
-      // Use correct field name based on organization
-      const geometryField = userOrg === 'jeddah' ? 'geometry' : 'geom'
-      updateTerritoryMutation.mutate({
-        id: originalId,
-        data: { 
-          [geometryField]: featureToSave.geometry as Polygon | MultiPolygon,
-          updated_at: new Date().toISOString()
-        }
-      }, {
-        onSuccess: () => {
-          console.log('Territory saved successfully')
-          setIsSaving(false)
-          handleCancelEdit()
-        },
-        onError: (error) => {
-          console.error('Failed to save territory:', error)
-          setIsSaving(false)
-        }
-      })
+      if (userOrg === 'urimpact') {
+        // Use Urimpact territory endpoint
+        updateUrimpactTerritory.mutate({
+          id: originalId,
+          data: { 
+            geometry: featureToSave.geometry as Polygon | MultiPolygon,
+            updated_at: new Date().toISOString()
+          }
+        }, {
+          onSuccess: () => {
+            console.log('Urimpact territory saved successfully')
+            setIsSaving(false)
+            handleCancelEdit()
+          },
+          onError: (error) => {
+            console.error('Failed to save Urimpact territory:', error)
+            setIsSaving(false)
+          }
+        })
+      } else {
+        // Use correct field name based on organization
+        const geometryField = userOrg === 'jeddah' ? 'geometry' : 'geom'
+        updateTerritoryMutation.mutate({
+          id: originalId,
+          data: { 
+            [geometryField]: featureToSave.geometry as Polygon | MultiPolygon,
+            updated_at: new Date().toISOString()
+          }
+        }, {
+          onSuccess: () => {
+            console.log('Territory saved successfully')
+            setIsSaving(false)
+            handleCancelEdit()
+          },
+          onError: (error) => {
+            console.error('Failed to save territory:', error)
+            setIsSaving(false)
+          }
+        })
+      }
     } else if (featureType === 'location') {
       // Save location
-      // Use correct field name based on organization
-      const geometryField = userOrg === 'jeddah' ? 'geometry' : 'geom'
-      updateLocationMutation.mutate({
-        id: originalId,
-        data: { 
-          [geometryField]: featureToSave.geometry as Point,
-          updated_at: new Date().toISOString()
-        },
-        type: featureToSave.properties?.locationType || 'current',
-      }, {
-        onSuccess: () => {
-          console.log('Location saved successfully')
-          setIsSaving(false)
-          handleCancelEdit()
-        },
-        onError: (error) => {
-          console.error('Failed to save location:', error)
-          setIsSaving(false)
-        }
-      })
+      if (userOrg === 'urimpact') {
+        // Use Urimpact location endpoint
+        updateUrimpactLocation.mutate({
+          id: originalId,
+          data: { 
+            geometry: featureToSave.geometry as Point,
+            updated_at: new Date().toISOString()
+          }
+        }, {
+          onSuccess: () => {
+            console.log('Urimpact location saved successfully')
+            setIsSaving(false)
+            handleCancelEdit()
+          },
+          onError: (error) => {
+            console.error('Failed to save Urimpact location:', error)
+            setIsSaving(false)
+          }
+        })
+      } else {
+        // Use correct field name based on organization
+        const geometryField = userOrg === 'jeddah' ? 'geometry' : 'geom'
+        updateLocationMutation.mutate({
+          id: originalId,
+          data: { 
+            [geometryField]: featureToSave.geometry as Point,
+            updated_at: new Date().toISOString()
+          },
+          type: featureToSave.properties?.locationType || 'current',
+        }, {
+          onSuccess: () => {
+            console.log('Location saved successfully')
+            setIsSaving(false)
+            handleCancelEdit()
+          },
+          onError: (error) => {
+            console.error('Failed to save location:', error)
+            setIsSaving(false)
+          }
+        })
+      }
     } else {
       console.error('Unknown geometry type for saving:', geometryType)
       setIsSaving(false)
