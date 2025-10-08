@@ -215,7 +215,6 @@ export function HorizontalToolbar({
            </Tooltip>
           ))}
         </div>
-        </div>
       </TooltipProvider>
     </div>
   )
