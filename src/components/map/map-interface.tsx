@@ -7,6 +7,7 @@ import { MapControls } from './map-controls'
 import { TerritoryGenerator } from './territory-generator'
 import { JeddahTerritoryGenerator } from './jeddah-territory-generator'
 import { GeoJSONImporter } from './geojson-importer'
+import { ExportConfigModal } from './export-config-modal'
 import { Territory, Location, MapLayer, Basemap, DrawingTool } from '@/types'
 import {
   useUSStates,
@@ -629,6 +630,8 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
   // Urimpact imported GeoJSON data
   const [urimpactImportedGeoJSON, setUrimpactImportedGeoJSON] = useState<FeatureCollection | null>(null)
   const [isGeoJSONImporterOpen, setIsGeoJSONImporterOpen] = useState(false)
+  const [isExportConfigOpen, setIsExportConfigOpen] = useState(false)
+  const [exportMode, setExportMode] = useState<'export' | 'print'>('export')
   
   // Load map.geojson data for Urimpact users
   useEffect(() => {
@@ -2526,16 +2529,34 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
   }
 
   const handleExport = useCallback(() => {
+    setExportMode('export')
+    setIsExportConfigOpen(true)
+  }, [])
+
+  const handlePrint = useCallback(() => {
+    setExportMode('print')
+    setIsExportConfigOpen(true)
+  }, [])
+
+  const handleExportWithConfig = useCallback((config: any) => {
     if (mapRef.current) {
-        exportMapAsPDF(mapRef.current, layers, 'Map Export', 'a4-landscape', true, true, true);
+      exportMapAsPDF(
+        mapRef.current, 
+        layers, 
+        config.title, 
+        config.layout, 
+        config.includeLegend, 
+        config.includeScale, 
+        config.includeNorthArrow
+      )
     }
   }, [layers])
 
-  const handlePrint = useCallback(() => {
-    // Direct print like the original implementation
-    console.log('Print button clicked');
-    console.log('Map element for print:', document.getElementById('map'));
-    console.log('Map element visible:', document.getElementById('map')?.offsetWidth, 'x', document.getElementById('map')?.offsetHeight);
+  const handlePrintWithConfig = useCallback((config: any) => {
+    // Enhanced print with configuration
+    console.log('Print with config:', config)
+    console.log('Map element for print:', document.getElementById('map'))
+    console.log('Map element visible:', document.getElementById('map')?.offsetWidth, 'x', document.getElementById('map')?.offsetHeight)
     window.print()
   }, [])
 
@@ -2849,6 +2870,15 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         onClose={() => setIsGeoJSONImporterOpen(false)}
         onImport={handleImportGeoJSON}
         userOrg={userOrg}
+      />
+      
+      {/* Export Configuration Modal */}
+      <ExportConfigModal
+        isOpen={isExportConfigOpen}
+        onClose={() => setIsExportConfigOpen(false)}
+        onExport={handleExportWithConfig}
+        onPrint={handlePrintWithConfig}
+        mode={exportMode}
       />
     </div>
   )
