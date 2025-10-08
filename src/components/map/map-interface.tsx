@@ -640,6 +640,9 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     carbonSequestration: number
     area: number
   } | null>(null)
+  const [carbonPanelPosition, setCarbonPanelPosition] = useState({ x: 20, y: 20 })
+  const [isDraggingCarbon, setIsDraggingCarbon] = useState(false)
+  const [carbonDragStart, setCarbonDragStart] = useState({ x: 0, y: 0 })
   
   // Load tree icon and generate tree distribution
   const loadTreeIcon = useCallback(async () => {
@@ -852,6 +855,40 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
       }
     }
   }, [])
+
+  // Carbon panel drag handlers
+  const handleCarbonMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsDraggingCarbon(true)
+    setCarbonDragStart({
+      x: e.clientX - carbonPanelPosition.x,
+      y: e.clientY - carbonPanelPosition.y
+    })
+  }, [carbonPanelPosition])
+
+  const handleCarbonMouseMove = useCallback((e: MouseEvent) => {
+    if (isDraggingCarbon) {
+      setCarbonPanelPosition({
+        x: e.clientX - carbonDragStart.x,
+        y: e.clientY - carbonDragStart.y
+      })
+    }
+  }, [isDraggingCarbon, carbonDragStart])
+
+  const handleCarbonMouseUp = useCallback(() => {
+    setIsDraggingCarbon(false)
+  }, [])
+
+  useEffect(() => {
+    if (isDraggingCarbon) {
+      document.addEventListener('mousemove', handleCarbonMouseMove)
+      document.addEventListener('mouseup', handleCarbonMouseUp)
+      return () => {
+        document.removeEventListener('mousemove', handleCarbonMouseMove)
+        document.removeEventListener('mouseup', handleCarbonMouseUp)
+      }
+    }
+  }, [isDraggingCarbon, handleCarbonMouseMove, handleCarbonMouseUp])
   
   // Urimpact CRUD operations
   const createUrimpactAdminBoundary = useMutation({
@@ -2907,12 +2944,24 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
           </div>
         )}
 
-        {/* Carbon Sequestration Panel */}
+        {/* Carbon Sequestration Panel - Draggable */}
         {userOrg === 'urimpact' && carbonData && (
-          <div className="absolute bottom-4 left-4 z-10 bg-background/95 rounded-lg shadow-lg border p-4 max-w-sm">
+          <div 
+            className="absolute z-10 bg-background/95 rounded-lg shadow-lg border p-4 max-w-sm cursor-move select-none"
+            style={{
+              left: `${carbonPanelPosition.x}px`,
+              top: `${carbonPanelPosition.y}px`,
+              transform: isDraggingCarbon ? 'scale(1.02)' : 'scale(1)',
+              transition: isDraggingCarbon ? 'none' : 'transform 0.2s ease-out'
+            }}
+            onMouseDown={handleCarbonMouseDown}
+          >
             <div className="flex items-center gap-2 mb-3">
               <div className="w-3 h-3 bg-green-500 rounded-full"></div>
               <h3 className="font-semibold text-lg">Carbon Sequestration</h3>
+              <div className="ml-auto text-xs text-muted-foreground">
+                Drag to move
+              </div>
             </div>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
