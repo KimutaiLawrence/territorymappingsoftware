@@ -1616,15 +1616,38 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     }
   }, [isMapLoaded, userOrg, jeddahFastData, fitToCustomerLocations])
 
-  // Auto-fit to planting areas when Urimpact data loads
+  // Auto-fit to planting areas when Urimpact data loads (only once)
   useEffect(() => {
     if (isMapLoaded && userOrg === 'urimpact' && urimpactImportedGeoJSON?.features?.length > 0) {
       const timer = setTimeout(() => {
-        flyToDefaultView()
+        const map = mapRef.current
+        if (!map) return
+        
+        try {
+          // Calculate bounds of all planting areas
+          const bounds = bbox(urimpactImportedGeoJSON)
+          map.fitBounds([
+            [bounds[0], bounds[1]],
+            [bounds[2], bounds[3]]
+          ], {
+            padding: 100,
+            maxZoom: 16,
+            duration: 1000
+          })
+          console.log('✅ Flying to Urimpact planting areas:', bounds)
+        } catch (error) {
+          console.error('❌ Error fitting to planting areas:', error)
+          // Fallback to Saudi Arabia center
+          map.flyTo({
+            center: [45.0, 24.0], // Center of Saudi Arabia
+            zoom: 5,
+            duration: 1000,
+          })
+        }
       }, 1000) // Wait a bit for data to be processed
       return () => clearTimeout(timer)
     }
-  }, [isMapLoaded, userOrg, urimpactImportedGeoJSON, flyToDefaultView])
+  }, [isMapLoaded, userOrg, urimpactImportedGeoJSON?.features?.length]) // Remove flyToDefaultView from dependencies
 
   const handleBasemapChange = (basemap: Basemap) => {
     const map = mapRef.current
@@ -3003,19 +3026,19 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         {/* Map Title - Draggable and Centered */}
         <div 
           className={cn(
-            "absolute z-10 bg-background/95 backdrop-blur-sm px-6 py-3 rounded-xl shadow-lg border select-none hover:shadow-xl transition-all duration-200",
-            isEditingTitle ? "cursor-text" : "cursor-move"
+            "absolute z-20 bg-white/95 backdrop-blur-md px-8 py-4 rounded-2xl shadow-2xl border-2 border-white/20 select-none hover:shadow-3xl transition-all duration-300",
+            isEditingTitle ? "cursor-text ring-2 ring-blue-500/50" : "cursor-move hover:scale-105"
           )}
           style={{
             left: titlePosition.x === 0 ? '50%' : `${titlePosition.x}px`,
             top: `${titlePosition.y}px`,
-            transform: titlePosition.x === 0 ? 'translateX(-50%)' : (isDraggingTitle ? 'scale(1.02)' : 'scale(1)'),
-            transition: isDraggingTitle ? 'none' : 'transform 0.2s ease-out'
+            transform: titlePosition.x === 0 ? 'translateX(-50%)' : (isDraggingTitle ? 'scale(1.05)' : 'scale(1)'),
+            transition: isDraggingTitle ? 'none' : 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
           }}
           onMouseDown={isEditingTitle ? undefined : handleTitleMouseDown}
           onDoubleClick={handleTitleDoubleClick}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             {isEditingTitle ? (
               <input
                 type="text"
@@ -3023,32 +3046,32 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
                 onChange={(e) => setMapTitle(e.target.value)}
                 onKeyDown={handleTitleKeyDown}
                 onBlur={handleTitleBlur}
-                className="bg-transparent border-none outline-none text-xl font-bold text-center min-w-0 flex-1 placeholder:text-muted-foreground focus:placeholder:text-muted-foreground/50"
+                className="bg-transparent border-none outline-none text-2xl font-bold text-center min-w-0 flex-1 placeholder:text-gray-400 focus:placeholder:text-gray-300 text-gray-800"
                 placeholder="Enter map title (e.g., Tree Planting Potential - Majmaah University)"
-                style={{ minWidth: '300px' }}
+                style={{ minWidth: '400px', fontFamily: 'Inter, system-ui, sans-serif' }}
                 autoFocus
               />
             ) : (
               <div 
-                className="text-xl font-bold text-center min-w-0 flex-1 cursor-pointer hover:text-muted-foreground transition-colors"
-                style={{ minWidth: '300px' }}
+                className="text-2xl font-bold text-center min-w-0 flex-1 cursor-pointer hover:text-blue-600 transition-colors text-gray-800"
+                style={{ minWidth: '400px', fontFamily: 'Inter, system-ui, sans-serif' }}
                 onDoubleClick={handleTitleDoubleClick}
               >
                 {mapTitle}
               </div>
             )}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => setMapTitle('Tree Planting Potential - Majmaah University')}
-                className="text-muted-foreground hover:text-foreground text-sm px-2 py-1 rounded hover:bg-muted/50 transition-colors"
+                className="text-gray-500 hover:text-blue-600 text-sm px-3 py-2 rounded-lg hover:bg-blue-50 transition-all duration-200 font-medium"
                 title="Reset to default title"
               >
                 Reset
               </button>
               {saveMapTitleMutation.isPending && (
-                <div className="w-3 h-3 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
               )}
-              <div className="text-xs text-muted-foreground opacity-0 hover:opacity-100 transition-opacity">
+              <div className="text-xs text-gray-500 opacity-0 hover:opacity-100 transition-opacity duration-200 font-medium">
                 {isEditingTitle ? "Press Enter to save, Escape to cancel" : "Double-click to edit, drag to move"}
               </div>
             </div>
