@@ -38,7 +38,7 @@ export function GeoJSONImporter({ isOpen, onClose, onImport, userOrg }: GeoJSONI
     setIsValidating(true)
     
     try {
-      const parsed = JSON.parse(jsonInput)
+      let parsed = JSON.parse(jsonInput)
       
       // Validate GeoJSON structure
       if (!parsed.type) {
