@@ -49,6 +49,7 @@ import {
   useOrganizationDeleteLocation 
 } from '@/hooks/use-organization-api'
 import { useLayerOpacitySettings } from '@/hooks/use-layer-opacity'
+import { useMapTitle, useSaveMapTitle } from '@/hooks/use-map-title'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { PrintComposer } from './print-composer'
@@ -634,9 +635,13 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
   const [isExportConfigOpen, setIsExportConfigOpen] = useState(false)
   const [exportMode, setExportMode] = useState<'export' | 'print'>('export')
   const [mapTitle, setMapTitle] = useState('Territory Mapper')
-  const [titlePosition, setTitlePosition] = useState({ x: 400, y: 100 })
+  const [titlePosition, setTitlePosition] = useState({ x: 0, y: 100 }) // Will be centered
   const [isDraggingTitle, setIsDraggingTitle] = useState(false)
   const [titleDragStart, setTitleDragStart] = useState({ x: 0, y: 0 })
+  
+  // Map title hooks
+  const { data: savedTitle } = useMapTitle()
+  const saveMapTitleMutation = useSaveMapTitle()
   const [treeIconsLoaded, setTreeIconsLoaded] = useState(false)
   const [carbonData, setCarbonData] = useState<{
     totalTrees: number
@@ -926,6 +931,24 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
       }
     }
   }, [isDraggingTitle, handleTitleMouseMove, handleTitleMouseUp])
+
+  // Load saved title
+  useEffect(() => {
+    if (savedTitle && savedTitle !== mapTitle) {
+      setMapTitle(savedTitle)
+    }
+  }, [savedTitle])
+
+  // Auto-save title with debounce
+  useEffect(() => {
+    if (userOrg === 'urimpact' && mapTitle && mapTitle !== 'Territory Mapper') {
+      const timeoutId = setTimeout(() => {
+        saveMapTitleMutation.mutate(mapTitle)
+      }, 2000) // Save after 2 seconds of no changes
+      
+      return () => clearTimeout(timeoutId)
+    }
+  }, [mapTitle, userOrg, saveMapTitleMutation])
   
   // Urimpact CRUD operations
   const createUrimpactAdminBoundary = useMutation({
@@ -2947,32 +2970,33 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         />
         
         
-        {/* Map Title - Draggable */}
+        {/* Map Title - Draggable and Centered */}
         <div 
-          className="absolute z-10 bg-background/95 px-4 py-2 rounded-lg shadow-md border cursor-move select-none"
+          className="absolute z-10 bg-background/95 backdrop-blur-sm px-6 py-3 rounded-xl shadow-lg border cursor-move select-none"
           style={{
-            left: `${titlePosition.x}px`,
+            left: titlePosition.x === 0 ? '50%' : `${titlePosition.x}px`,
             top: `${titlePosition.y}px`,
-            transform: isDraggingTitle ? 'scale(1.02)' : 'scale(1)',
+            transform: titlePosition.x === 0 ? 'translateX(-50%)' : (isDraggingTitle ? 'scale(1.02)' : 'scale(1)'),
             transition: isDraggingTitle ? 'none' : 'transform 0.2s ease-out'
           }}
           onMouseDown={handleTitleMouseDown}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <input
               type="text"
               value={mapTitle}
               onChange={(e) => setMapTitle(e.target.value)}
-              className="bg-transparent border-none outline-none text-lg font-semibold min-w-0 flex-1"
-              placeholder="Map Title"
+              className="bg-transparent border-none outline-none text-xl font-bold text-center min-w-0 flex-1 placeholder:text-muted-foreground"
+              placeholder="Enter map title..."
+              style={{ minWidth: '200px' }}
             />
             <button
               onClick={() => setMapTitle('Territory Mapper')}
-              className="text-muted-foreground hover:text-foreground text-sm"
+              className="text-muted-foreground hover:text-foreground text-sm px-2 py-1 rounded hover:bg-muted/50 transition-colors"
             >
               Reset
             </button>
-            <div className="text-xs text-muted-foreground ml-2">
+            <div className="text-xs text-muted-foreground opacity-0 hover:opacity-100 transition-opacity">
               Drag to move
             </div>
           </div>

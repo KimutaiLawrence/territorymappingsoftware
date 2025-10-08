@@ -68,7 +68,7 @@ export function HorizontalToolbar({
   userOrg,
   className,
 }: HorizontalToolbarProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(true) // Start collapsed
   const tools: {
     id: DrawingTool | 'pan' | 'export' | 'print' | 'save'
     label: string
@@ -103,30 +103,37 @@ export function HorizontalToolbar({
   return (
     <div
       className={cn(
-        'absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-background/95 rounded-lg shadow-md border transition-all duration-300 ease-in-out',
-        isCollapsed ? 'p-1' : 'p-2',
+        'absolute top-4 left-1/2 -translate-x-1/2 z-10 transition-all duration-300 ease-in-out',
         className
       )}
     >
       <TooltipProvider>
-        {/* Collapse/Expand Button */}
-        <div className="flex items-center justify-between mb-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="h-6 px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
-          >
-            Map Tools
-            {isCollapsed ? <ChevronDown className="h-3 w-3 ml-1" /> : <ChevronUp className="h-3 w-3 ml-1" />}
-          </Button>
-        </div>
+        {/* Collapsed State - Thin Line */}
+        {isCollapsed && (
+          <div 
+            className="w-16 h-1 bg-muted-foreground/30 rounded-full cursor-pointer hover:bg-muted-foreground/50 transition-colors"
+            onClick={() => setIsCollapsed(false)}
+            title="Double-click to expand tools"
+          />
+        )}
         
-        {/* Toolbar Content */}
-        <div className={cn(
-          'flex items-center space-x-2 transition-all duration-300 ease-in-out',
-          isCollapsed ? 'opacity-0 max-h-0 overflow-hidden' : 'opacity-100 max-h-20'
-        )}>
+        {/* Expanded State */}
+        {!isCollapsed && (
+          <div className="bg-background/95 backdrop-blur-sm rounded-xl shadow-lg border p-3">
+            {/* Collapse Button */}
+            <div className="flex items-center justify-end mb-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsCollapsed(true)}
+                className="h-6 px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+              >
+                <ChevronUp className="h-3 w-3" />
+              </Button>
+            </div>
+            
+            {/* Toolbar Content */}
+            <div className="flex items-center space-x-2">
           {tools.map(tool => (
             tool.id === 'draw_point' ? (
               <DropdownMenu key={tool.id}>
@@ -214,7 +221,9 @@ export function HorizontalToolbar({
              </TooltipContent>
            </Tooltip>
           ))}
-        </div>
+            </div>
+          </div>
+        )}
       </TooltipProvider>
     </div>
   )
