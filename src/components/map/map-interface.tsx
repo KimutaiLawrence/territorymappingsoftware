@@ -694,7 +694,20 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
 
   // Generate tree distribution within polygons
   const generateTreeDistribution = useCallback((geojson: FeatureCollection) => {
-    if (!mapRef.current || !treeIconsLoaded) return
+    console.log('🌳 Starting tree generation...', { 
+      mapExists: !!mapRef.current, 
+      treeIconsLoaded, 
+      featuresCount: geojson.features.length 
+    })
+    
+    if (!mapRef.current) {
+      console.error('❌ Map not available for tree generation')
+      return
+    }
+    
+    if (!treeIconsLoaded) {
+      console.warn('⚠️ Tree icons not loaded yet, will use circle fallback')
+    }
 
     const treeFeatures: any[] = []
     let totalArea = 0
@@ -710,12 +723,15 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         const treesPerHectare = 100 // 100 trees per hectare
         const treesInArea = Math.floor((area / 10000) * treesPerHectare) // Convert to hectares
         totalTrees += treesInArea
+        
+        console.log(`🌳 Area ${index + 1}: ${(area / 10000).toFixed(2)} hectares, ${treesInArea} trees`)
 
         // Generate random points within the polygon
         const bbox = turf.bbox(feature)
         const attempts = treesInArea * 3 // Try 3x the number of trees to get good distribution
         
-        for (let i = 0; i < attempts && treeFeatures.length < totalTrees; i++) {
+        let treesGenerated = 0
+        for (let i = 0; i < attempts && treesGenerated < treesInArea; i++) {
           const randomPoint = turf.randomPoint(1, {
             bbox: bbox
           })
@@ -730,8 +746,10 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
                 carbonPerYear: 22 // kg CO2 per tree per year
               }
             })
+            treesGenerated++
           }
         }
+        console.log(`🌳 Generated ${treesGenerated} trees for area ${index + 1}`)
       }
     })
 
@@ -768,11 +786,12 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         source: 'trees',
         layout: {
           'icon-image': 'tree-icon',
-          'icon-size': 0.3,
+          'icon-size': 0.5, // Increased size for better visibility
           'icon-allow-overlap': true,
           'icon-ignore-placement': true
         }
       })
+      console.log('✅ Added tree layer with icons')
     } else {
       // Fallback to circle markers
       mapRef.current.addLayer({
@@ -781,11 +800,12 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         source: 'trees',
         paint: {
           'circle-color': '#22c55e',
-          'circle-radius': 3,
+          'circle-radius': 4, // Increased size for better visibility
           'circle-stroke-color': '#16a34a',
-          'circle-stroke-width': 1
+          'circle-stroke-width': 2
         }
       })
+      console.log('✅ Added tree layer with circles (fallback)')
     }
 
     console.log(`✅ Generated ${totalTrees} trees across ${geojson.features.length} planting areas`)
@@ -803,7 +823,13 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
             console.log('✅ Loaded Urimpact map.geojson data:', data)
             
             // Load tree icon and generate tree distribution
+            console.log('🌳 Loading tree icon and generating distribution...')
             loadTreeIcon().then(() => {
+              console.log('🌳 Tree icon loaded, generating distribution...')
+              generateTreeDistribution(data)
+            }).catch(error => {
+              console.error('❌ Error loading tree icon:', error)
+              // Still try to generate trees with fallback
               generateTreeDistribution(data)
             })
           }
