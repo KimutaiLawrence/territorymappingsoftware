@@ -607,7 +607,18 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
       const response = await api.get('/api/gisdata/administrative?format=geojson&per_page=20')
       return response.data || { type: 'FeatureCollection', features: [] }
     },
-    enabled: userOrg !== 'jeddah',
+    enabled: userOrg !== 'jeddah' && userOrg !== 'urimpact',
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+  
+  // For Urimpact users, use Saudi Arabia specific endpoint
+  const { data: urimpactAdminBoundaries, isLoading: urimpactAdminBoundariesLoading } = useQuery({
+    queryKey: ['urimpact-admin-boundaries'],
+    queryFn: async () => {
+      const response = await api.get('/api/gisdata/administrative?format=geojson&per_page=20')
+      return response.data || { type: 'FeatureCollection', features: [] }
+    },
+    enabled: userOrg === 'urimpact',
     staleTime: 1000 * 60 * 5, // 5 minutes
   })
   
@@ -661,6 +672,11 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         { id: 'territories', name: 'Territories', type: 'territories', visible: true, opacity: getOpacity('territories', 0.5), color: getColor('territories', '#3b82f6') },
         { id: 'admin-boundaries', name: 'Administrative Boundaries', type: 'admin-boundaries', visible: true, opacity: getOpacity('admin-boundaries', 0.1), color: getColor('admin-boundaries', '#3b82f6') },
         { id: 'customer-locations', name: 'Customer Locations', type: 'customer-locations', visible: true, opacity: getOpacity('customer-locations', 1), color: getColor('customer-locations', '#ef4444') },
+      ]
+    } else if (userOrg === 'urimpact') {
+      // Urimpact organization - show only Saudi Arabia boundary data
+      return [
+        { id: 'admin-boundaries', name: 'Saudi Arabia Boundaries', type: 'admin-boundaries', visible: true, opacity: getOpacity('admin-boundaries', 0.8), color: getColor('admin-boundaries', '#3b82f6') },
       ]
     } else if (userOrg === 'hooptrailer') {
       // Hooptrailer organization - show only US data
@@ -898,6 +914,15 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
             console.log(`Customer locations data:`, data)
             break
         }
+      } else if (userOrg === 'urimpact') {
+        // For Urimpact users, use Saudi Arabia boundary data only
+        console.log(`Loading Urimpact data for layer: ${layer.id}`)
+        switch (layer.id) {
+          case 'admin-boundaries':
+            data = (urimpactAdminBoundaries as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+            console.log(`Urimpact admin boundaries data:`, data)
+            break
+        }
       } else {
         // For other users, use regular data sources
         switch (layer.id) {
@@ -950,6 +975,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     rivers,
     roads,
     adminBoundaries,
+    urimpactAdminBoundaries,
     customerLocations,
     populationAnalysisLayer,
     expansionAnalysisLayer,
@@ -1001,6 +1027,13 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
           duration: 1000,
         })
       }
+    } else if (userOrg === 'urimpact') {
+      // For Urimpact users, center on Saudi Arabia
+      map.flyTo({
+        center: [45.0, 24.0], // Center of Saudi Arabia
+        zoom: 5, // Zoom level to show Saudi Arabia
+        duration: 1000,
+      })
     } else if (userOrg === 'hooptrailer') {
       // Center on USA
       map.flyTo({
