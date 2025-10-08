@@ -125,7 +125,7 @@ export function GeoJSONImporter({ isOpen, onClose, onImport, userOrg }: GeoJSONI
           geojson = parsed as FeatureCollection
         }
         
-        handleImport(geojson)
+        handleImportWithAutoFly(geojson)
         onClose()
         setJsonInput('')
         setValidationResult(null)
@@ -174,7 +174,7 @@ export function GeoJSONImporter({ isOpen, onClose, onImport, userOrg }: GeoJSONI
   }, [isDragging, dragStart])
 
   // Auto-fly to imported GeoJSON
-  const handleImport = (geojson: FeatureCollection) => {
+  const handleImportWithAutoFly = (geojson: FeatureCollection) => {
     onImport(geojson)
     
     // Auto-fly to the imported GeoJSON bounds
