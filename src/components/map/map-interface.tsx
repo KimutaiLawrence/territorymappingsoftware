@@ -646,13 +646,43 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     if (!mapRef.current || treeIconsLoaded) return
 
     try {
-      const treeIconUrl = 'https://upload.wikimedia.org/wikipedia/commons/e/ee/Green_tree_icon.svg'
-      const image = await mapRef.current.loadImage(treeIconUrl)
+      // Create a simple tree icon using canvas
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      canvas.width = 24
+      canvas.height = 24
+      
+      if (ctx) {
+        // Draw a simple tree shape
+        ctx.fillStyle = '#22c55e' // Green color
+        ctx.beginPath()
+        // Tree trunk
+        ctx.fillRect(10, 16, 4, 8)
+        // Tree canopy (triangle)
+        ctx.moveTo(12, 4)
+        ctx.lineTo(4, 16)
+        ctx.lineTo(20, 16)
+        ctx.closePath()
+        ctx.fill()
+        
+        // Add some texture
+        ctx.fillStyle = '#16a34a'
+        ctx.beginPath()
+        ctx.moveTo(12, 6)
+        ctx.lineTo(6, 14)
+        ctx.lineTo(18, 14)
+        ctx.closePath()
+        ctx.fill()
+      }
+      
+      // Convert canvas to image data
+      const imageData = canvas.toDataURL()
+      const image = await mapRef.current.loadImage(imageData)
       mapRef.current.addImage('tree-icon', image.data)
       setTreeIconsLoaded(true)
-      console.log('✅ Tree icon loaded successfully')
+      console.log('✅ Tree icon created and loaded successfully')
     } catch (error) {
-      console.error('❌ Error loading tree icon:', error)
+      console.error('❌ Error creating tree icon:', error)
     }
   }, [treeIconsLoaded])
 
@@ -722,17 +752,33 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
       }
     })
 
-    mapRef.current.addLayer({
-      id: 'trees',
-      type: 'symbol',
-      source: 'trees',
-      layout: {
-        'icon-image': 'tree-icon',
-        'icon-size': 0.3,
-        'icon-allow-overlap': true,
-        'icon-ignore-placement': true
-      }
-    })
+    // Add tree layer with fallback to circles if icon fails
+    if (mapRef.current.hasImage('tree-icon')) {
+      mapRef.current.addLayer({
+        id: 'trees',
+        type: 'symbol',
+        source: 'trees',
+        layout: {
+          'icon-image': 'tree-icon',
+          'icon-size': 0.3,
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true
+        }
+      })
+    } else {
+      // Fallback to circle markers
+      mapRef.current.addLayer({
+        id: 'trees',
+        type: 'circle',
+        source: 'trees',
+        paint: {
+          'circle-color': '#22c55e',
+          'circle-radius': 3,
+          'circle-stroke-color': '#16a34a',
+          'circle-stroke-width': 1
+        }
+      })
+    }
 
     console.log(`✅ Generated ${totalTrees} trees across ${geojson.features.length} planting areas`)
   }, [treeIconsLoaded])
