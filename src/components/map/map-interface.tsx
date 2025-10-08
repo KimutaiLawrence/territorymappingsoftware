@@ -356,7 +356,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
   const [panelWidth, setPanelWidth] = useState(320) // Default width for map layers panel
   const [isResizing, setIsResizing] = useState(false)
   const [isPanelDragging, setIsPanelDragging] = useState(false)
-  const [panelPosition, setPanelPosition] = useState<'left' | 'right'>('left')
+  const [panelPosition, setPanelPosition] = useState<'left' | 'right' | 'hidden'>('left')
 
   const queryClient = useQueryClient()
   
@@ -632,6 +632,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
   const [isGeoJSONImporterOpen, setIsGeoJSONImporterOpen] = useState(false)
   const [isExportConfigOpen, setIsExportConfigOpen] = useState(false)
   const [exportMode, setExportMode] = useState<'export' | 'print'>('export')
+  const [mapTitle, setMapTitle] = useState('Territory Mapper')
   
   // Load map.geojson data for Urimpact users
   useEffect(() => {
@@ -839,7 +840,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
               visible: true,
               opacity: getOpacity(`planting-area-${index}`, 0.7),
               color: getColor(`planting-area-${index}`, feature.properties?.color || '#8b5cf6'),
-              data: { type: 'FeatureCollection', features: [feature] }
+              data: { type: 'FeatureCollection', features: [feature] } as any
             })
           })
         } else {
@@ -2318,11 +2319,18 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         setPanelWidth(newWidth)
       }
     } else if (isPanelDragging) {
-      // Check if dragged to right side
+      // Check if dragged to hide panel or change position
+      const hideThreshold = window.innerWidth * 0.9
       const rightThreshold = window.innerWidth * 0.7
-      if (e.clientX > rightThreshold && panelPosition === 'left') {
+      
+      if (e.clientX > hideThreshold) {
+        // Hide panel if dragged to far right
+        setPanelPosition('hidden')
+      } else if (e.clientX > rightThreshold && panelPosition === 'left') {
         setPanelPosition('right')
       } else if (e.clientX < rightThreshold && panelPosition === 'right') {
+        setPanelPosition('left')
+      } else if (panelPosition === 'hidden' && e.clientX < rightThreshold) {
         setPanelPosition('left')
       }
     }
@@ -2664,6 +2672,40 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         />
         
         
+        {/* Map Title */}
+        <div className="absolute top-4 left-4 z-10 bg-background/95 px-4 py-2 rounded-lg shadow-md border">
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={mapTitle}
+              onChange={(e) => setMapTitle(e.target.value)}
+              className="bg-transparent border-none outline-none text-lg font-semibold min-w-0 flex-1"
+              placeholder="Map Title"
+            />
+            <button
+              onClick={() => setMapTitle('Territory Mapper')}
+              className="text-muted-foreground hover:text-foreground text-sm"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+
+        {/* Show Panel Button (when hidden) */}
+        {panelPosition === 'hidden' && (
+          <div className="absolute top-4 right-4 z-10">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPanelPosition('left')}
+              className="bg-background/95"
+            >
+              <Layers className="h-4 w-4 mr-2" />
+              Show Layers
+            </Button>
+          </div>
+        )}
+
         {/* Editing mode indicator */}
         {isEditingMode && (
           <div className="absolute top-16 right-4 z-10 bg-blue-500 text-white px-3 py-2 rounded-lg shadow-lg animate-pulse">
@@ -2737,9 +2779,9 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
                         className="p-2"
                         onClick={() => {
                           // Zoom to the edited feature
-                          if (editingFeature && map) {
+                          if (editingFeature && mapRef.current) {
                             const bounds = bbox(editingFeature.geometry)
-                            map.fitBounds([
+                            mapRef.current.fitBounds([
                               [bounds[0], bounds[1]],
                               [bounds[2], bounds[3]]
                             ], {
@@ -2793,18 +2835,19 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
           </Drawer>
         </div>
       </div>
-      <div 
-        className={cn(
-          "bg-background/95 hidden md:block relative transition-all duration-300 ease-in-out",
-          panelPosition === 'left' ? 'border-l' : 'border-r'
-        )}
-        style={{ 
-          width: `${panelWidth}px`,
-          [panelPosition === 'left' ? 'left' : 'right']: 0
-        }}
-        onMouseDown={handlePanelMouseDown}
-        data-panel-drag-handle
-      >
+      {panelPosition !== 'hidden' && (
+        <div 
+          className={cn(
+            "bg-background/95 hidden md:block relative transition-all duration-300 ease-in-out",
+            panelPosition === 'left' ? 'border-l' : 'border-r'
+          )}
+          style={{ 
+            width: `${panelWidth}px`,
+            [panelPosition === 'left' ? 'left' : 'right']: 0
+          }}
+          onMouseDown={handlePanelMouseDown}
+          data-panel-drag-handle
+        >
         {/* Resize handle */}
         <div
           className="absolute left-0 top-0 bottom-0 w-1 bg-border hover:bg-primary/50 cursor-col-resize z-10"
@@ -2829,7 +2872,8 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
           showAllAdminBoundaries={showAllAdminBoundaries}
           onToggleAllAdminBoundaries={setShowAllAdminBoundaries}
         />
-      </div>
+        </div>
+      )}
       <TerritoryFormModal
         isOpen={isTerritoryModalOpen}
         onOpenChange={setIsTerritoryModalOpen}
