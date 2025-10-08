@@ -111,9 +111,9 @@ export function HorizontalToolbar({
         {/* Collapsed State - Thin Line */}
         {isCollapsed && (
           <div 
-            className="w-16 h-1 bg-muted-foreground/30 rounded-full cursor-pointer hover:bg-muted-foreground/50 transition-colors"
+            className="w-20 h-1 bg-muted-foreground/40 rounded-full cursor-pointer hover:bg-muted-foreground/60 transition-all duration-200 hover:w-24"
             onClick={() => setIsCollapsed(false)}
-            title="Double-click to expand tools"
+            title="Click to expand map tools"
           />
         )}
         

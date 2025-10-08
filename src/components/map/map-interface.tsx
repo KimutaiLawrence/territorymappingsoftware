@@ -2972,7 +2972,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         
         {/* Map Title - Draggable and Centered */}
         <div 
-          className="absolute z-10 bg-background/95 backdrop-blur-sm px-6 py-3 rounded-xl shadow-lg border cursor-move select-none"
+          className="absolute z-10 bg-background/95 backdrop-blur-sm px-6 py-3 rounded-xl shadow-lg border cursor-move select-none hover:shadow-xl transition-all duration-200"
           style={{
             left: titlePosition.x === 0 ? '50%' : `${titlePosition.x}px`,
             top: `${titlePosition.y}px`,
@@ -2986,18 +2986,25 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
               type="text"
               value={mapTitle}
               onChange={(e) => setMapTitle(e.target.value)}
-              className="bg-transparent border-none outline-none text-xl font-bold text-center min-w-0 flex-1 placeholder:text-muted-foreground"
-              placeholder="Enter map title..."
-              style={{ minWidth: '200px' }}
+              className="bg-transparent border-none outline-none text-xl font-bold text-center min-w-0 flex-1 placeholder:text-muted-foreground focus:placeholder:text-muted-foreground/50"
+              placeholder="Enter map title (e.g., Tree Planting Potential - Majmaah University)"
+              style={{ minWidth: '300px' }}
+              onFocus={(e) => e.target.select()}
             />
-            <button
-              onClick={() => setMapTitle('Territory Mapper')}
-              className="text-muted-foreground hover:text-foreground text-sm px-2 py-1 rounded hover:bg-muted/50 transition-colors"
-            >
-              Reset
-            </button>
-            <div className="text-xs text-muted-foreground opacity-0 hover:opacity-100 transition-opacity">
-              Drag to move
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setMapTitle('Territory Mapper')}
+                className="text-muted-foreground hover:text-foreground text-sm px-2 py-1 rounded hover:bg-muted/50 transition-colors"
+                title="Reset to default title"
+              >
+                Reset
+              </button>
+              {saveMapTitleMutation.isPending && (
+                <div className="w-3 h-3 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
+              )}
+              <div className="text-xs text-muted-foreground opacity-0 hover:opacity-100 transition-opacity">
+                Drag to move
+              </div>
             </div>
           </div>
         </div>
