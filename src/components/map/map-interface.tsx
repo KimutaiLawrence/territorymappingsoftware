@@ -1175,12 +1175,37 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         })
       }
     } else if (userOrg === 'urimpact') {
-      // For Urimpact users, center on Saudi Arabia
-      map.flyTo({
-        center: [45.0, 24.0], // Center of Saudi Arabia
-        zoom: 5, // Zoom level to show Saudi Arabia
-        duration: 1000,
-      })
+      // For Urimpact users, try to fit to planting areas first
+      if (urimpactImportedGeoJSON && urimpactImportedGeoJSON.features.length > 0) {
+        try {
+          // Calculate bounds of all planting areas
+          const bounds = bbox(urimpactImportedGeoJSON)
+          map.fitBounds([
+            [bounds[0], bounds[1]],
+            [bounds[2], bounds[3]]
+          ], {
+            padding: 100,
+            maxZoom: 16,
+            duration: 1000
+          })
+          console.log('✅ Flying to Urimpact planting areas:', bounds)
+        } catch (error) {
+          console.error('❌ Error fitting to planting areas:', error)
+          // Fallback to Saudi Arabia center
+          map.flyTo({
+            center: [45.0, 24.0], // Center of Saudi Arabia
+            zoom: 5,
+            duration: 1000,
+          })
+        }
+      } else {
+        // Fallback to Saudi Arabia center if no planting areas data
+        map.flyTo({
+          center: [45.0, 24.0], // Center of Saudi Arabia
+          zoom: 5,
+          duration: 1000,
+        })
+      }
     } else if (userOrg === 'hooptrailer') {
       // Center on USA
       map.flyTo({
@@ -1196,7 +1221,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         duration: 1000,
       })
     }
-  }, [user?.organization?.name, fitToCustomerLocations])
+  }, [user?.organization?.name, fitToCustomerLocations, urimpactImportedGeoJSON])
 
   // Auto-center map when user organization changes
   useEffect(() => {
@@ -1218,6 +1243,16 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
       return () => clearTimeout(timer)
     }
   }, [isMapLoaded, userOrg, jeddahFastData, fitToCustomerLocations])
+
+  // Auto-fit to planting areas when Urimpact data loads
+  useEffect(() => {
+    if (isMapLoaded && userOrg === 'urimpact' && urimpactImportedGeoJSON?.features?.length > 0) {
+      const timer = setTimeout(() => {
+        flyToDefaultView()
+      }, 1000) // Wait a bit for data to be processed
+      return () => clearTimeout(timer)
+    }
+  }, [isMapLoaded, userOrg, urimpactImportedGeoJSON, flyToDefaultView])
 
   const handleBasemapChange = (basemap: Basemap) => {
     const map = mapRef.current
