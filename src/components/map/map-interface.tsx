@@ -634,6 +634,9 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
   const [isExportConfigOpen, setIsExportConfigOpen] = useState(false)
   const [exportMode, setExportMode] = useState<'export' | 'print'>('export')
   const [mapTitle, setMapTitle] = useState('Territory Mapper')
+  const [titlePosition, setTitlePosition] = useState({ x: 400, y: 100 })
+  const [isDraggingTitle, setIsDraggingTitle] = useState(false)
+  const [titleDragStart, setTitleDragStart] = useState({ x: 0, y: 0 })
   const [treeIconsLoaded, setTreeIconsLoaded] = useState(false)
   const [carbonData, setCarbonData] = useState<{
     totalTrees: number
@@ -889,6 +892,40 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
       }
     }
   }, [isDraggingCarbon, handleCarbonMouseMove, handleCarbonMouseUp])
+
+  // Title drag handlers
+  const handleTitleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsDraggingTitle(true)
+    setTitleDragStart({
+      x: e.clientX - titlePosition.x,
+      y: e.clientY - titlePosition.y
+    })
+  }, [titlePosition])
+
+  const handleTitleMouseMove = useCallback((e: MouseEvent) => {
+    if (isDraggingTitle) {
+      setTitlePosition({
+        x: e.clientX - titleDragStart.x,
+        y: e.clientY - titleDragStart.y
+      })
+    }
+  }, [isDraggingTitle, titleDragStart])
+
+  const handleTitleMouseUp = useCallback(() => {
+    setIsDraggingTitle(false)
+  }, [])
+
+  useEffect(() => {
+    if (isDraggingTitle) {
+      document.addEventListener('mousemove', handleTitleMouseMove)
+      document.addEventListener('mouseup', handleTitleMouseUp)
+      return () => {
+        document.removeEventListener('mousemove', handleTitleMouseMove)
+        document.removeEventListener('mouseup', handleTitleMouseUp)
+      }
+    }
+  }, [isDraggingTitle, handleTitleMouseMove, handleTitleMouseUp])
   
   // Urimpact CRUD operations
   const createUrimpactAdminBoundary = useMutation({
@@ -2910,8 +2947,17 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         />
         
         
-        {/* Map Title */}
-        <div className="absolute top-4 left-4 z-10 bg-background/95 px-4 py-2 rounded-lg shadow-md border">
+        {/* Map Title - Draggable */}
+        <div 
+          className="absolute z-10 bg-background/95 px-4 py-2 rounded-lg shadow-md border cursor-move select-none"
+          style={{
+            left: `${titlePosition.x}px`,
+            top: `${titlePosition.y}px`,
+            transform: isDraggingTitle ? 'scale(1.02)' : 'scale(1)',
+            transition: isDraggingTitle ? 'none' : 'transform 0.2s ease-out'
+          }}
+          onMouseDown={handleTitleMouseDown}
+        >
           <div className="flex items-center gap-2">
             <input
               type="text"
@@ -2926,6 +2972,9 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
             >
               Reset
             </button>
+            <div className="text-xs text-muted-foreground ml-2">
+              Drag to move
+            </div>
           </div>
         </div>
 

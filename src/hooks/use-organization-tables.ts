@@ -126,6 +126,10 @@ export function useOrganizationDatasets() {
         })) || []
         
         return datasets
+      } else if (userOrg === 'urimpact') {
+        // Urimpact datasets endpoint
+        const response = await api.get('/api/urimpact/datasets')
+        return response.data.datasets || []
       } else {
         // HoopTrailer datasets endpoint
         const response = await api.get('/api/datasets/')
