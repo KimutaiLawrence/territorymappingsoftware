@@ -640,7 +640,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     carbonSequestration: number
     area: number
   } | null>(null)
-  const [carbonPanelPosition, setCarbonPanelPosition] = useState({ x: 20, y: 20 })
+  const [carbonPanelPosition, setCarbonPanelPosition] = useState({ x: 20, y: 300 })
   const [isDraggingCarbon, setIsDraggingCarbon] = useState(false)
   const [carbonDragStart, setCarbonDragStart] = useState({ x: 0, y: 0 })
   
