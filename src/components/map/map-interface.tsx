@@ -25,6 +25,7 @@ import { BasemapSwitcher } from './basemap-switcher'
 import { Legend } from './legend' // Import the new Legend component
 import bbox from '@turf/bbox'
 import pointsWithinPolygon from '@turf/points-within-polygon'
+import * as turf from '@turf/turf'
 import MapboxDraw from '@mapbox/mapbox-gl-draw'
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
 import { drawStyles } from '@/lib/draw-styles'
@@ -633,7 +634,109 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
   const [isExportConfigOpen, setIsExportConfigOpen] = useState(false)
   const [exportMode, setExportMode] = useState<'export' | 'print'>('export')
   const [mapTitle, setMapTitle] = useState('Territory Mapper')
+  const [treeIconsLoaded, setTreeIconsLoaded] = useState(false)
+  const [carbonData, setCarbonData] = useState<{
+    totalTrees: number
+    carbonSequestration: number
+    area: number
+  } | null>(null)
   
+  // Load tree icon and generate tree distribution
+  const loadTreeIcon = useCallback(async () => {
+    if (!mapRef.current || treeIconsLoaded) return
+
+    try {
+      const treeIconUrl = 'https://upload.wikimedia.org/wikipedia/commons/e/ee/Green_tree_icon.svg'
+      const image = await mapRef.current.loadImage(treeIconUrl)
+      mapRef.current.addImage('tree-icon', image.data)
+      setTreeIconsLoaded(true)
+      console.log('✅ Tree icon loaded successfully')
+    } catch (error) {
+      console.error('❌ Error loading tree icon:', error)
+    }
+  }, [treeIconsLoaded])
+
+  // Generate tree distribution within polygons
+  const generateTreeDistribution = useCallback((geojson: FeatureCollection) => {
+    if (!mapRef.current || !treeIconsLoaded) return
+
+    const treeFeatures: any[] = []
+    let totalArea = 0
+    let totalTrees = 0
+
+    geojson.features.forEach((feature, index) => {
+      if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
+        // Calculate area using turf
+        const area = turf.area(feature)
+        totalArea += area
+        
+        // Generate trees based on area (1 tree per 100 square meters)
+        const treesPerHectare = 100 // 100 trees per hectare
+        const treesInArea = Math.floor((area / 10000) * treesPerHectare) // Convert to hectares
+        totalTrees += treesInArea
+
+        // Generate random points within the polygon
+        const bbox = turf.bbox(feature)
+        const attempts = treesInArea * 3 // Try 3x the number of trees to get good distribution
+        
+        for (let i = 0; i < attempts && treeFeatures.length < totalTrees; i++) {
+          const randomPoint = turf.randomPoint(1, {
+            bbox: bbox
+          })
+          
+          if (turf.booleanPointInPolygon(randomPoint.features[0], feature)) {
+            treeFeatures.push({
+              type: 'Feature',
+              geometry: randomPoint.features[0].geometry,
+              properties: {
+                id: `tree-${index}-${i}`,
+                zone: feature.properties?.zone_name || `Planting Area ${index + 1}`,
+                carbonPerYear: 22 // kg CO2 per tree per year
+              }
+            })
+          }
+        }
+      }
+    })
+
+    // Calculate carbon sequestration (22 kg CO2 per tree per year)
+    const carbonSequestration = totalTrees * 22
+
+    setCarbonData({
+      totalTrees,
+      carbonSequestration,
+      area: totalArea / 10000 // Convert to hectares
+    })
+
+    // Add tree source and layer
+    if (mapRef.current.getSource('trees')) {
+      mapRef.current.removeLayer('trees')
+      mapRef.current.removeSource('trees')
+    }
+
+    mapRef.current.addSource('trees', {
+      type: 'geojson',
+      data: {
+        type: 'FeatureCollection',
+        features: treeFeatures
+      }
+    })
+
+    mapRef.current.addLayer({
+      id: 'trees',
+      type: 'symbol',
+      source: 'trees',
+      layout: {
+        'icon-image': 'tree-icon',
+        'icon-size': 0.3,
+        'icon-allow-overlap': true,
+        'icon-ignore-placement': true
+      }
+    })
+
+    console.log(`✅ Generated ${totalTrees} trees across ${geojson.features.length} planting areas`)
+  }, [treeIconsLoaded])
+
   // Load map.geojson data for Urimpact users
   useEffect(() => {
     if (userOrg === 'urimpact' && !urimpactImportedGeoJSON) {
@@ -644,13 +747,18 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
           if (data && data.type === 'FeatureCollection') {
             setUrimpactImportedGeoJSON(data)
             console.log('✅ Loaded Urimpact map.geojson data:', data)
+            
+            // Load tree icon and generate tree distribution
+            loadTreeIcon().then(() => {
+              generateTreeDistribution(data)
+            })
           }
         })
         .catch(error => {
           console.error('❌ Failed to load Urimpact map.geojson:', error)
         })
     }
-  }, [userOrg, urimpactImportedGeoJSON])
+  }, [userOrg, urimpactImportedGeoJSON, loadTreeIcon, generateTreeDistribution])
   
   // Urimpact CRUD operations
   const createUrimpactAdminBoundary = useMutation({
@@ -2703,6 +2811,38 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
               <Layers className="h-4 w-4 mr-2" />
               Show Layers
             </Button>
+          </div>
+        )}
+
+        {/* Carbon Sequestration Panel */}
+        {userOrg === 'urimpact' && carbonData && (
+          <div className="absolute bottom-4 left-4 z-10 bg-background/95 rounded-lg shadow-lg border p-4 max-w-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <h3 className="font-semibold text-lg">Carbon Sequestration</h3>
+            </div>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total Trees:</span>
+                <span className="font-medium">{carbonData.totalTrees.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Area:</span>
+                <span className="font-medium">{carbonData.area.toFixed(2)} hectares</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">CO₂ Sequestration:</span>
+                <span className="font-medium text-green-600">
+                  {carbonData.carbonSequestration.toLocaleString()} kg/year
+                </span>
+              </div>
+              <div className="pt-2 border-t">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Equivalent to:</span>
+                  <span>{(carbonData.carbonSequestration / 1000).toFixed(1)} tons CO₂/year</span>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
