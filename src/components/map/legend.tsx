@@ -45,12 +45,14 @@ export function Legend({ layers }: LegendProps) {
             l.type.includes('location') ||
             l.type === 'territories' ||
             l.type === 'customer-locations' ||
-            l.type === 'admin-boundaries')
+            l.type === 'admin-boundaries' ||
+            l.type === 'imported-geojson' ||
+            l.id.startsWith('planting-area-'))
       )
     )
   }, [layers])
 
-  const legendLayers = visibleLayers.filter(l => getLegendData(l).length > 0 || l.type.includes('location') || l.type === 'territories' || l.type === 'customer-locations' || l.type === 'admin-boundaries')
+  const legendLayers = visibleLayers.filter(l => getLegendData(l).length > 0 || l.type.includes('location') || l.type === 'territories' || l.type === 'customer-locations' || l.type === 'admin-boundaries' || l.type === 'imported-geojson' || l.id.startsWith('planting-area-'))
 
   if (legendLayers.length === 0) {
     return null
