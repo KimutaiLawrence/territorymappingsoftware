@@ -48,6 +48,7 @@ import {
 } from '@/hooks/use-organization-api'
 import { useLayerOpacitySettings } from '@/hooks/use-layer-opacity'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 import { PrintComposer } from './print-composer'
 import { exportMapAsPDF } from '@/lib/pdf-export'
 import { useQueryClient, useQuery, useMutation } from '@tanstack/react-query'
@@ -353,6 +354,8 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
   const [showAllAdminBoundaries, setShowAllAdminBoundaries] = useState<boolean>(false)
   const [panelWidth, setPanelWidth] = useState(320) // Default width for map layers panel
   const [isResizing, setIsResizing] = useState(false)
+  const [isPanelDragging, setIsPanelDragging] = useState(false)
+  const [panelPosition, setPanelPosition] = useState<'left' | 'right'>('left')
 
   const queryClient = useQueryClient()
   
@@ -2296,20 +2299,35 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     setIsResizing(true)
   }
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isResizing) return
-    
-    const newWidth = window.innerWidth - e.clientX
-    const minWidth = 280
-    const maxWidth = 600
-    
-    if (newWidth >= minWidth && newWidth <= maxWidth) {
-      setPanelWidth(newWidth)
+  const handlePanelMouseDown = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget || (e.target as HTMLElement).closest('[data-panel-drag-handle]')) {
+      setIsPanelDragging(true)
     }
-  }, [isResizing])
+  }
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (isResizing) {
+      const newWidth = window.innerWidth - e.clientX
+      const minWidth = 280
+      const maxWidth = 600
+      
+      if (newWidth >= minWidth && newWidth <= maxWidth) {
+        setPanelWidth(newWidth)
+      }
+    } else if (isPanelDragging) {
+      // Check if dragged to right side
+      const rightThreshold = window.innerWidth * 0.7
+      if (e.clientX > rightThreshold && panelPosition === 'left') {
+        setPanelPosition('right')
+      } else if (e.clientX < rightThreshold && panelPosition === 'right') {
+        setPanelPosition('left')
+      }
+    }
+  }, [isResizing, isPanelDragging, panelPosition])
 
   const handleMouseUp = useCallback(() => {
     setIsResizing(false)
+    setIsPanelDragging(false)
   }, [])
 
   // Add event listeners for resizing
@@ -2755,8 +2773,16 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         </div>
       </div>
       <div 
-        className="border-l bg-background/95 hidden md:block relative"
-        style={{ width: `${panelWidth}px` }}
+        className={cn(
+          "bg-background/95 hidden md:block relative transition-all duration-300 ease-in-out",
+          panelPosition === 'left' ? 'border-l' : 'border-r'
+        )}
+        style={{ 
+          width: `${panelWidth}px`,
+          [panelPosition === 'left' ? 'left' : 'right']: 0
+        }}
+        onMouseDown={handlePanelMouseDown}
+        data-panel-drag-handle
       >
         {/* Resize handle */}
         <div

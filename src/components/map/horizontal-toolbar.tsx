@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Pipette,
@@ -13,6 +13,8 @@ import {
   Home,
   Target,
   Save,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import { DrawingTool } from '@/types'
 import { cn } from '@/lib/utils'
@@ -66,6 +68,7 @@ export function HorizontalToolbar({
   userOrg,
   className,
 }: HorizontalToolbarProps) {
+  const [isCollapsed, setIsCollapsed] = useState(false)
   const tools: {
     id: DrawingTool | 'pan' | 'export' | 'print' | 'save'
     label: string
@@ -100,12 +103,30 @@ export function HorizontalToolbar({
   return (
     <div
       className={cn(
-        'absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-background/95 p-2 rounded-lg shadow-md border',
+        'absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-background/95 rounded-lg shadow-md border transition-all duration-300 ease-in-out',
+        isCollapsed ? 'p-1' : 'p-2',
         className
       )}
     >
       <TooltipProvider>
-        <div className="flex items-center space-x-2">
+        {/* Collapse/Expand Button */}
+        <div className="flex items-center justify-between mb-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="h-6 px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+          >
+            Map Tools
+            {isCollapsed ? <ChevronDown className="h-3 w-3 ml-1" /> : <ChevronUp className="h-3 w-3 ml-1" />}
+          </Button>
+        </div>
+        
+        {/* Toolbar Content */}
+        <div className={cn(
+          'flex items-center space-x-2 transition-all duration-300 ease-in-out',
+          isCollapsed ? 'opacity-0 max-h-0 overflow-hidden' : 'opacity-100 max-h-20'
+        )}>
           {tools.map(tool => (
             tool.id === 'draw_point' ? (
               <DropdownMenu key={tool.id}>
@@ -193,6 +214,7 @@ export function HorizontalToolbar({
              </TooltipContent>
            </Tooltip>
           ))}
+        </div>
         </div>
       </TooltipProvider>
     </div>
