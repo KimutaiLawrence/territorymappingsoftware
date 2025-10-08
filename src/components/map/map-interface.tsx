@@ -634,10 +634,11 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
   const [isGeoJSONImporterOpen, setIsGeoJSONImporterOpen] = useState(false)
   const [isExportConfigOpen, setIsExportConfigOpen] = useState(false)
   const [exportMode, setExportMode] = useState<'export' | 'print'>('export')
-  const [mapTitle, setMapTitle] = useState('Territory Mapper')
-  const [titlePosition, setTitlePosition] = useState({ x: 0, y: 100 }) // Will be centered
+  const [mapTitle, setMapTitle] = useState('Tree Planting Potential - Majmaah University')
+  const [titlePosition, setTitlePosition] = useState({ x: 0, y: 20 }) // Positioned to cover toolbar line
   const [isDraggingTitle, setIsDraggingTitle] = useState(false)
   const [titleDragStart, setTitleDragStart] = useState({ x: 0, y: 0 })
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
   
   // Map title hooks
   const { data: savedTitle } = useMapTitle()
@@ -939,14 +940,43 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     }
   }, [savedTitle])
 
-  // Auto-save title with debounce
+  // Auto-save title with debounce (only when not editing)
   useEffect(() => {
-    if (userOrg === 'urimpact' && mapTitle && mapTitle !== 'Territory Mapper') {
+    if (userOrg === 'urimpact' && mapTitle && mapTitle !== 'Territory Mapper' && !isEditingTitle) {
       const timeoutId = setTimeout(() => {
         saveMapTitleMutation.mutate(mapTitle)
       }, 2000) // Save after 2 seconds of no changes
       
       return () => clearTimeout(timeoutId)
+    }
+  }, [mapTitle, userOrg, saveMapTitleMutation, isEditingTitle])
+
+  // Handle title editing
+  const handleTitleDoubleClick = useCallback(() => {
+    setIsEditingTitle(true)
+  }, [])
+
+  const handleTitleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      setIsEditingTitle(false)
+      // Save immediately on Enter
+      if (userOrg === 'urimpact' && mapTitle) {
+        saveMapTitleMutation.mutate(mapTitle)
+      }
+    } else if (e.key === 'Escape') {
+      setIsEditingTitle(false)
+      // Revert to saved title
+      if (savedTitle) {
+        setMapTitle(savedTitle)
+      }
+    }
+  }, [mapTitle, userOrg, saveMapTitleMutation, savedTitle])
+
+  const handleTitleBlur = useCallback(() => {
+    setIsEditingTitle(false)
+    // Auto-save on blur
+    if (userOrg === 'urimpact' && mapTitle) {
+      saveMapTitleMutation.mutate(mapTitle)
     }
   }, [mapTitle, userOrg, saveMapTitleMutation])
   
@@ -2972,28 +3002,44 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         
         {/* Map Title - Draggable and Centered */}
         <div 
-          className="absolute z-10 bg-background/95 backdrop-blur-sm px-6 py-3 rounded-xl shadow-lg border cursor-move select-none hover:shadow-xl transition-all duration-200"
+          className={cn(
+            "absolute z-10 bg-background/95 backdrop-blur-sm px-6 py-3 rounded-xl shadow-lg border select-none hover:shadow-xl transition-all duration-200",
+            isEditingTitle ? "cursor-text" : "cursor-move"
+          )}
           style={{
             left: titlePosition.x === 0 ? '50%' : `${titlePosition.x}px`,
             top: `${titlePosition.y}px`,
             transform: titlePosition.x === 0 ? 'translateX(-50%)' : (isDraggingTitle ? 'scale(1.02)' : 'scale(1)'),
             transition: isDraggingTitle ? 'none' : 'transform 0.2s ease-out'
           }}
-          onMouseDown={handleTitleMouseDown}
+          onMouseDown={isEditingTitle ? undefined : handleTitleMouseDown}
+          onDoubleClick={handleTitleDoubleClick}
         >
           <div className="flex items-center gap-3">
-            <input
-              type="text"
-              value={mapTitle}
-              onChange={(e) => setMapTitle(e.target.value)}
-              className="bg-transparent border-none outline-none text-xl font-bold text-center min-w-0 flex-1 placeholder:text-muted-foreground focus:placeholder:text-muted-foreground/50"
-              placeholder="Enter map title (e.g., Tree Planting Potential - Majmaah University)"
-              style={{ minWidth: '300px' }}
-              onFocus={(e) => e.target.select()}
-            />
+            {isEditingTitle ? (
+              <input
+                type="text"
+                value={mapTitle}
+                onChange={(e) => setMapTitle(e.target.value)}
+                onKeyDown={handleTitleKeyDown}
+                onBlur={handleTitleBlur}
+                className="bg-transparent border-none outline-none text-xl font-bold text-center min-w-0 flex-1 placeholder:text-muted-foreground focus:placeholder:text-muted-foreground/50"
+                placeholder="Enter map title (e.g., Tree Planting Potential - Majmaah University)"
+                style={{ minWidth: '300px' }}
+                autoFocus
+              />
+            ) : (
+              <div 
+                className="text-xl font-bold text-center min-w-0 flex-1 cursor-pointer hover:text-muted-foreground transition-colors"
+                style={{ minWidth: '300px' }}
+                onDoubleClick={handleTitleDoubleClick}
+              >
+                {mapTitle}
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setMapTitle('Territory Mapper')}
+                onClick={() => setMapTitle('Tree Planting Potential - Majmaah University')}
                 className="text-muted-foreground hover:text-foreground text-sm px-2 py-1 rounded hover:bg-muted/50 transition-colors"
                 title="Reset to default title"
               >
@@ -3003,7 +3049,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
                 <div className="w-3 h-3 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
               )}
               <div className="text-xs text-muted-foreground opacity-0 hover:opacity-100 transition-opacity">
-                Drag to move
+                {isEditingTitle ? "Press Enter to save, Escape to cancel" : "Double-click to edit, drag to move"}
               </div>
             </div>
           </div>
