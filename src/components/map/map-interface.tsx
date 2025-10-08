@@ -678,9 +678,15 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
       // Convert canvas to image data
       const imageData = canvas.toDataURL()
       const image = await mapRef.current.loadImage(imageData)
-      mapRef.current.addImage('tree-icon', image.data)
+      
+      // Check if image already exists before adding
+      if (!mapRef.current.hasImage('tree-icon')) {
+        mapRef.current.addImage('tree-icon', image.data)
+        console.log('✅ Tree icon created and loaded successfully')
+      } else {
+        console.log('✅ Tree icon already exists, skipping')
+      }
       setTreeIconsLoaded(true)
-      console.log('✅ Tree icon created and loaded successfully')
     } catch (error) {
       console.error('❌ Error creating tree icon:', error)
     }
@@ -738,9 +744,11 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
       area: totalArea / 10000 // Convert to hectares
     })
 
-    // Add tree source and layer
-    if (mapRef.current.getSource('trees')) {
+    // Clean up existing tree layer and source
+    if (mapRef.current.getLayer('trees')) {
       mapRef.current.removeLayer('trees')
+    }
+    if (mapRef.current.getSource('trees')) {
       mapRef.current.removeSource('trees')
     }
 
@@ -805,6 +813,19 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         })
     }
   }, [userOrg, urimpactImportedGeoJSON, loadTreeIcon, generateTreeDistribution])
+
+  // Cleanup tree icon on unmount
+  useEffect(() => {
+    return () => {
+      if (mapRef.current && mapRef.current.hasImage('tree-icon')) {
+        try {
+          mapRef.current.removeImage('tree-icon')
+        } catch (error) {
+          console.warn('⚠️ Could not remove tree icon:', error)
+        }
+      }
+    }
+  }, [])
   
   // Urimpact CRUD operations
   const createUrimpactAdminBoundary = useMutation({
