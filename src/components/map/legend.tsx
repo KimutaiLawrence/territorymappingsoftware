@@ -55,13 +55,13 @@ export function Legend({ layers, userOrg }: LegendProps) {
   // For Urimpact, show zones dynamically based on visible planting areas
   if (userOrg === 'urimpact') {
     const urimpactZones = [
-      { name: 'Zone E - Experimental Desert', color: '#8b5cf6', opacity: 0.7 },
-      { name: 'Zone F - Biodiversity Block', color: '#10b981', opacity: 0.7 },
-      { name: 'Zone G - Native Reserve', color: '#f59e0b', opacity: 0.7 },
-      { name: 'Zone A - Pioneer Species', color: '#ef4444', opacity: 0.7 },
-      { name: 'Zone B - Desert Adapted', color: '#3b82f6', opacity: 0.7 },
-      { name: 'Zone C - Salt Tolerant', color: '#8b5cf6', opacity: 0.7 },
-      { name: 'Zone D - Wind Break', color: '#06b6d4', opacity: 0.7 }
+      { name: 'Zone E ', color: '#8b5cf6', opacity: 0.7 },
+      { name: 'Zone F ', color: '#10b981', opacity: 0.7 },
+      { name: 'Zone G ', color: '#f59e0b', opacity: 0.7 },
+      { name: 'Zone A ', color: '#ef4444', opacity: 0.7 },
+      { name: 'Zone B ', color: '#3b82f6', opacity: 0.7 },
+      { name: 'Zone C ', color: '#8b5cf6', opacity: 0.7 },
+      { name: 'Zone D ', color: '#06b6d4', opacity: 0.7 }
     ]
     
     // Filter zones based on visible planting area layers
