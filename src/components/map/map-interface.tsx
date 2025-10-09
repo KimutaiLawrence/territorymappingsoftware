@@ -849,10 +849,32 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         })
         .then(data => {
           console.log('🌱 Map.geojson raw data:', data)
-          if (data && data.type === 'FeatureCollection') {
-            setUrimpactImportedGeoJSON(data)
-            console.log('✅ Loaded Urimpact map.geojson data:', data)
-            console.log('✅ Features count:', data.features.length)
+          if (data && data.type === 'FeatureCollection' && Array.isArray(data.features)) {
+            // Validate each feature has proper geometry
+            const validFeatures = data.features.filter(feature => 
+              feature && 
+              feature.type === 'Feature' && 
+              feature.geometry && 
+              feature.geometry.type && 
+              feature.geometry.coordinates
+            )
+            
+            if (validFeatures.length > 0) {
+              const validGeoJSON = {
+                type: 'FeatureCollection',
+                features: validFeatures
+              }
+              setUrimpactImportedGeoJSON(validGeoJSON)
+              console.log('✅ Loaded Urimpact map.geojson data:', validGeoJSON)
+              console.log('✅ Features count:', validFeatures.length)
+            } else {
+              console.error('❌ No valid features found in GeoJSON data')
+              setUrimpactImportedGeoJSON(null)
+            }
+          } else {
+            console.error('❌ Invalid GeoJSON data structure:', data)
+            setUrimpactImportedGeoJSON(null)
+          }
             
             // Load tree icon and generate tree distribution
             console.log('🌳 Loading tree icon and generating distribution...')
@@ -868,6 +890,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         })
         .catch(error => {
           console.error('❌ Failed to load Urimpact map.geojson:', error)
+          setUrimpactImportedGeoJSON(null)
         })
     }
   }, [userOrg, urimpactImportedGeoJSON, loadTreeIcon, generateTreeDistribution])
@@ -1680,48 +1703,52 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     
     // Store tree data before style change
     const treeSource = map.getSource('trees') as maplibregl.GeoJSONSource
-    const treeData = treeSource?.getData()
+    const treeData = treeSource?.getData?.() || null
     
     map.setStyle(basemap.style)
     
     // Re-add tree layer after style change
-    if (treeData && userOrg === 'urimpact') {
+    if (treeData && userOrg === 'urimpact' && treeData.type === 'FeatureCollection') {
       map.once('styledata', () => {
-        // Re-add tree source
-        if (!map.getSource('trees')) {
-          map.addSource('trees', {
-            type: 'geojson',
-            data: treeData
-          })
-        }
-        
-        // Re-add tree layer
-        if (!map.getLayer('trees')) {
-          if (map.hasImage('tree-icon')) {
-            map.addLayer({
-              id: 'trees',
-              type: 'symbol',
-              source: 'trees',
-              layout: {
-                'icon-image': 'tree-icon',
-                'icon-size': 0.5,
-                'icon-allow-overlap': true,
-                'icon-ignore-placement': true
-              }
-            })
-          } else {
-            map.addLayer({
-              id: 'trees',
-              type: 'circle',
-              source: 'trees',
-              paint: {
-                'circle-color': '#16a34a',
-                'circle-radius': 4,
-                'circle-stroke-color': '#16a34a',
-                'circle-stroke-width': 2
-              }
+        try {
+          // Re-add tree source
+          if (!map.getSource('trees')) {
+            map.addSource('trees', {
+              type: 'geojson',
+              data: treeData
             })
           }
+        
+          // Re-add tree layer
+          if (!map.getLayer('trees')) {
+            if (map.hasImage('tree-icon')) {
+              map.addLayer({
+                id: 'trees',
+                type: 'symbol',
+                source: 'trees',
+                layout: {
+                  'icon-image': 'tree-icon',
+                  'icon-size': 0.5,
+                  'icon-allow-overlap': true,
+                  'icon-ignore-placement': true
+                }
+              })
+            } else {
+              map.addLayer({
+                id: 'trees',
+                type: 'circle',
+                source: 'trees',
+                paint: {
+                  'circle-color': '#16a34a',
+                  'circle-radius': 4,
+                  'circle-stroke-color': '#16a34a',
+                  'circle-stroke-width': 2
+                }
+              })
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error re-adding tree layer after basemap change:', error)
         }
       })
     }
@@ -2026,7 +2053,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         })
 
         if (!source) {
-          if (layer.data && layer.data.features.length > 0) {
+          if (layer.data && layer.data.features && Array.isArray(layer.data.features) && layer.data.features.length > 0) {
             // Enable clustering for customer locations
             if (layer.type === 'customer-locations') {
               map.addSource(sourceId, { 
