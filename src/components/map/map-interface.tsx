@@ -762,8 +762,8 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         const shouldShowTrees = index === 0 || treeToggleStates[`area-${index}`]
         
         if (shouldShowTrees) {
-          // Generate 1000 trees total, distributed across areas with trees enabled
-          const treesPerHectare = 100 // 100 trees per hectare
+          // Generate more trees with better distribution
+          const treesPerHectare = 150 // 150 trees per hectare (increased from 100)
           const treesInArea = Math.floor((area / 10000) * treesPerHectare) // Convert to hectares
           totalTrees += treesInArea
           
@@ -776,7 +776,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
           const height = maxY - minY
           
           // Calculate grid spacing based on area and desired tree density
-          const gridSpacing = Math.sqrt((area / treesInArea) * 2) // More spacing for better distribution
+          const gridSpacing = Math.sqrt((area / treesInArea) * 1.5) // Reduced spacing for more trees
           const cols = Math.floor(width / gridSpacing)
           const rows = Math.floor(height / gridSpacing)
           
@@ -786,9 +786,9 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
           // Generate trees using grid-based approach with some randomness
           for (let row = 0; row < rows && treesGenerated < treesInArea; row++) {
             for (let col = 0; col < cols && treesGenerated < treesInArea; col++) {
-              // Add some randomness to grid positions
-              const randomOffsetX = (Math.random() - 0.5) * gridSpacing * 0.3
-              const randomOffsetY = (Math.random() - 0.5) * gridSpacing * 0.3
+              // Add some randomness to grid positions (reduced for better distribution)
+              const randomOffsetX = (Math.random() - 0.5) * gridSpacing * 0.2
+              const randomOffsetY = (Math.random() - 0.5) * gridSpacing * 0.2
               
               const x = minX + (col * gridSpacing) + randomOffsetX
               const y = minY + (row * gridSpacing) + randomOffsetY
@@ -820,7 +820,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
           // If we need more trees, fill remaining with random points
           if (treesGenerated < treesInArea) {
             const remainingTrees = treesInArea - treesGenerated
-            const attempts = remainingTrees * 5
+            const attempts = remainingTrees * 8 // Increased attempts for better coverage
             
             for (let i = 0; i < attempts && treesGenerated < treesInArea; i++) {
               const randomPoint = turf.randomPoint(1, { bbox: bbox })
