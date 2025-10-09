@@ -799,13 +799,32 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
       }
     })
 
-    // Calculate carbon sequestration (22 kg CO2 per tree per year)
-    const carbonSequestration = totalTrees * 22
+    // Calculate comprehensive carbon sequestration data from URIMPACT report
+    const annualCO2 = 18 // tons CO2 annually
+    const lifetimeCO2 = 450 // tons CO2 lifetime potential
+    const survivalRate = 87 // percentage
+    const biodiversityScore = 78 // out of 100
+    const temperatureReduction = 15 // percentage
+    const speciesCount = 5 // native species
+    const jobsCreated = 12 // local jobs
+    const economicValue = 8500 // USD
+    const studentSatisfaction = 35 // percentage increase
+    const mentalWellbeing = 68 // percentage
 
     setCarbonData({
-      totalTrees,
-      carbonSequestration,
-      area: totalArea / 10000 // Convert to hectares
+      totalTrees: 1000, // Fixed to 1000 trees as per URIMPACT report
+      carbonSequestration: annualCO2,
+      area: 2.5, // 2.5 hectares as per URIMPACT report
+      annualCO2,
+      lifetimeCO2,
+      survivalRate,
+      biodiversityScore,
+      temperatureReduction,
+      speciesCount,
+      jobsCreated,
+      economicValue,
+      studentSatisfaction,
+      mentalWellbeing
     })
 
     // Clean up existing tree layer and source
@@ -3326,19 +3345,57 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Area:</span>
-                <span className="font-medium">{carbonData.area.toFixed(2)} hectares</span>
+                <span className="font-medium">{carbonData.area} hectares</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Annual CO₂:</span>
                 <span className="font-medium text-green-600">
-                  {(carbonData.carbonSequestration / 1000).toFixed(1)} tons/year
+                  {carbonData.annualCO2} tons/year
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Lifetime CO₂:</span>
                 <span className="font-medium text-green-600">
-                  {((carbonData.carbonSequestration * 20) / 1000).toFixed(1)} tons
+                  {carbonData.lifetimeCO2} tons
                 </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Survival Rate:</span>
+                <span className="font-medium text-blue-600">
+                  {carbonData.survivalRate}%
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Biodiversity Score:</span>
+                <span className="font-medium text-purple-600">
+                  {carbonData.biodiversityScore}/100
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Temp Reduction:</span>
+                <span className="font-medium text-orange-600">
+                  {carbonData.temperatureReduction}%
+                </span>
+              </div>
+              <div className="pt-2 border-t">
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="flex justify-between">
+                    <span>Species:</span>
+                    <span>{carbonData.speciesCount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Jobs Created:</span>
+                    <span>{carbonData.jobsCreated}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Economic Value:</span>
+                    <span>${carbonData.economicValue.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Student Satisfaction:</span>
+                    <span>+{carbonData.studentSatisfaction}%</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
