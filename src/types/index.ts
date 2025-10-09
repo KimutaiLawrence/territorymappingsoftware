@@ -99,6 +99,7 @@ export interface MapLayer {
     | 'population-analysis'
     | 'custom'
     | 'expansion-analysis'
+    | 'imported-geojson'
   visible: boolean
   data: FeatureCollection
   style?: any

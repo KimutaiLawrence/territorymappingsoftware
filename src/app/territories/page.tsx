@@ -28,6 +28,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { DeleteConfirmationDialog } from '@/components/common/delete-confirmation-dialog'
 import { TerritoryFormModal } from '@/components/territories/territory-form-modal'
 import { DetailsDialog } from '@/components/common/details-dialog'
+import { DatasetsTable } from '@/components/urimpact/datasets-table'
 import { usePagination } from '@/hooks/use-pagination'
 import { useRBAC } from '@/hooks/use-rbac'
 
@@ -170,7 +171,9 @@ export default function TerritoriesPage() {
             )}
           </div>
           <div className="flex-1 overflow-hidden">
-            {territoriesLoading ? (
+            {userOrg === 'urimpact' ? (
+              <DatasetsTable />
+            ) : territoriesLoading ? (
               <Loader />
             ) : (
               <DataTable

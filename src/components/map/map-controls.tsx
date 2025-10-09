@@ -34,6 +34,9 @@ interface MapControlsProps {
   userOrg?: string
   showAllAdminBoundaries?: boolean
   onToggleAllAdminBoundaries?: (show: boolean) => void
+  // Urimpact tree toggle props
+  treeToggleStates?: {[key: string]: boolean}
+  onTreeToggle?: (areaId: string, enabled: boolean) => void
 }
 
 export function MapControls({
@@ -53,6 +56,8 @@ export function MapControls({
   userOrg,
   showAllAdminBoundaries,
   onToggleAllAdminBoundaries,
+  treeToggleStates,
+  onTreeToggle,
 }: MapControlsProps) {
   const saveLayerOpacity = useSaveLayerOpacity()
 
@@ -337,6 +342,38 @@ export function MapControls({
                   : "Showing only Jeddah region (Makkah)"
                 }
               </p>
+            </div>
+          </div>
+        )}
+        
+        {/* Urimpact tree toggle controls */}
+        {userOrg === 'urimpact' && treeToggleStates && onTreeToggle && (
+          <div className="pt-4 border-t">
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-muted-foreground">Tree Display Controls</h4>
+              <p className="text-xs text-muted-foreground">
+                Toggle trees on/off for each planting area. Only Phase 1 shows trees by default.
+              </p>
+              {layers
+                .filter(layer => layer.id.startsWith('planting-area-'))
+                .map((layer, index) => {
+                  const areaId = `area-${index}`
+                  const isEnabled = treeToggleStates[areaId] || index === 0
+                  return (
+                    <div key={layer.id} className="flex items-center justify-between">
+                      <Label htmlFor={`tree-toggle-${layer.id}`} className="flex items-center space-x-2">
+                        <Switch
+                          id={`tree-toggle-${layer.id}`}
+                          checked={isEnabled}
+                          onCheckedChange={(checked) => onTreeToggle(areaId, checked)}
+                        />
+                        <span className="text-sm">
+                          {layer.name} {index === 0 ? '(Phase 1 - Active)' : `(Phase ${index + 1})`}
+                        </span>
+                      </Label>
+                    </div>
+                  )
+                })}
             </div>
           </div>
         )}

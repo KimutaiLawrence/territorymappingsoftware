@@ -20,6 +20,7 @@ import {
   useMapCustomerLocations,
   useMapClusteredCustomerLocations,
 } from '@/hooks/use-api'
+import { usePlantingAreas } from '@/hooks/use-planting-areas'
 import { Feature, FeatureCollection, Geometry, Point, MultiPoint, Polygon, MultiPolygon } from 'geojson'
 import { BasemapSwitcher } from './basemap-switcher'
 import { Legend } from './legend' // Import the new Legend component
@@ -658,12 +659,23 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     }
   }
   const [treeIconsLoaded, setTreeIconsLoaded] = useState(false)
+  const [treeToggleStates, setTreeToggleStates] = useState<{[key: string]: boolean}>({})
   const [carbonData, setCarbonData] = useState<{
     totalTrees: number
     carbonSequestration: number
     area: number
+    annualCO2: number
+    lifetimeCO2: number
+    survivalRate: number
+    biodiversityScore: number
+    temperatureReduction: number
+    speciesCount: number
+    jobsCreated: number
+    economicValue: number
+    studentSatisfaction: number
+    mentalWellbeing: number
   } | null>(null)
-  const [carbonPanelPosition, setCarbonPanelPosition] = useState({ x: 20, y: 300 })
+  const [carbonPanelPosition, setCarbonPanelPosition] = useState({ x: 20, y: 100 })
   const [isDraggingCarbon, setIsDraggingCarbon] = useState(false)
   const [carbonDragStart, setCarbonDragStart] = useState({ x: 0, y: 0 })
   
@@ -722,11 +734,12 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
   const generateTreeDistribution = useCallback((geojson: FeatureCollection) => {
     console.log('🌳 Starting tree generation...', { 
       mapExists: !!mapRef.current, 
+      isMapLoaded,
       treeIconsLoaded, 
       featuresCount: geojson.features.length 
     })
     
-    if (!mapRef.current) {
+    if (!mapRef.current || !isMapLoaded) {
       console.error('❌ Map not available for tree generation')
       return
     }
@@ -745,48 +758,77 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         const area = turf.area(feature)
         totalArea += area
         
-        // Generate trees based on area (1 tree per 100 square meters)
-        const treesPerHectare = 100 // 100 trees per hectare
-        const treesInArea = Math.floor((area / 10000) * treesPerHectare) // Convert to hectares
-        totalTrees += treesInArea
+        // Only show trees for the first area by default, or if explicitly toggled on
+        const shouldShowTrees = index === 0 || treeToggleStates[`area-${index}`]
         
-        console.log(`🌳 Area ${index + 1}: ${(area / 10000).toFixed(2)} hectares, ${treesInArea} trees`)
-
-        // Generate random points within the polygon
-        const bbox = turf.bbox(feature)
-        const attempts = treesInArea * 3 // Try 3x the number of trees to get good distribution
-        
-        let treesGenerated = 0
-        for (let i = 0; i < attempts && treesGenerated < treesInArea; i++) {
-          const randomPoint = turf.randomPoint(1, {
-            bbox: bbox
-          })
+        if (shouldShowTrees) {
+          // Generate 1000 trees total, distributed across areas with trees enabled
+          const treesPerHectare = 100 // 100 trees per hectare
+          const treesInArea = Math.floor((area / 10000) * treesPerHectare) // Convert to hectares
+          totalTrees += treesInArea
           
-          if (turf.booleanPointInPolygon(randomPoint.features[0], feature)) {
-            treeFeatures.push({
-              type: 'Feature',
-              geometry: randomPoint.features[0].geometry,
-              properties: {
-                id: `tree-${index}-${i}`,
-                zone: feature.properties?.zone_name || `Planting Area ${index + 1}`,
-                carbonPerYear: 22 // kg CO2 per tree per year
-              }
+          console.log(`🌳 Area ${index + 1}: ${(area / 10000).toFixed(2)} hectares, ${treesInArea} trees`)
+
+          // Generate random points within the polygon
+          const bbox = turf.bbox(feature)
+          const attempts = treesInArea * 3 // Try 3x the number of trees to get good distribution
+          
+          let treesGenerated = 0
+          for (let i = 0; i < attempts && treesGenerated < treesInArea; i++) {
+            const randomPoint = turf.randomPoint(1, {
+              bbox: bbox
             })
-            treesGenerated++
+            
+                 if (turf.booleanPointInPolygon(randomPoint.features[0], feature as any)) {
+              treeFeatures.push({
+                type: 'Feature',
+                geometry: randomPoint.features[0].geometry,
+                properties: {
+                  id: `tree-${index}-${i}`,
+                  zone: feature.properties?.zone_name || `Planting Area ${index + 1}`,
+                  carbonPerYear: 22, // kg CO2 per tree per year
+                  species: ['Date Palm', 'Acacia', 'Sidr', 'Ghaf', 'Olive'][Math.floor(Math.random() * 5)],
+                  height: Math.random() * 50 + 20, // 20-70cm height
+                  planted: '2025-03-15'
+                }
+              })
+              treesGenerated++
+            }
           }
+          console.log(`🌳 Generated ${treesGenerated} trees for area ${index + 1}`)
+        } else {
+          console.log(`🌳 Area ${index + 1}: Trees disabled (Phase ${index + 1})`)
         }
-        console.log(`🌳 Generated ${treesGenerated} trees for area ${index + 1}`)
       }
     })
 
-    // Calculate carbon sequestration (22 kg CO2 per tree per year)
-    const carbonSequestration = totalTrees * 22
+         // Calculate comprehensive carbon sequestration data from URIMPACT report
+         const annualCO2 = 18 // tons CO2 annually
+         const lifetimeCO2 = 450 // tons CO2 lifetime potential
+         const survivalRate = 87 // percentage
+         const biodiversityScore = 78 // out of 100
+         const temperatureReduction = 15 // percentage
+         const speciesCount = 5 // native species
+         const jobsCreated = 12
+         const economicValue = 8500 // USD
+         const studentSatisfaction = 35 // percentage increase
+         const mentalWellbeing = 68 // percentage improvement
 
-    setCarbonData({
-      totalTrees,
-      carbonSequestration,
-      area: totalArea / 10000 // Convert to hectares
-    })
+         setCarbonData({
+           totalTrees: 1000, // Fixed to 1000 trees as per URIMPACT report
+           carbonSequestration: annualCO2,
+           area: 2.5, // 2.5 hectares as per URIMPACT report
+           annualCO2,
+           lifetimeCO2,
+           survivalRate,
+           biodiversityScore,
+           temperatureReduction,
+           speciesCount,
+           jobsCreated,
+           economicValue,
+           studentSatisfaction,
+           mentalWellbeing
+         })
 
     // Clean up existing tree layer and source
     if (mapRef.current.getLayer('trees')) {
@@ -812,7 +854,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         source: 'trees',
         layout: {
           'icon-image': 'tree-icon',
-          'icon-size': 0.5, // Increased size for better visibility
+          'icon-size': 1.5, // Increased size for better visibility
           'icon-allow-overlap': true,
           'icon-ignore-placement': true
         }
@@ -826,7 +868,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         source: 'trees',
         paint: {
           'circle-color': '#22c55e',
-          'circle-radius': 4, // Increased size for better visibility
+          'circle-radius': 6, // Increased size for better visibility
           'circle-stroke-color': '#16a34a',
           'circle-stroke-width': 2
         }
@@ -835,64 +877,58 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     }
 
     console.log(`✅ Generated ${totalTrees} trees across ${geojson.features.length} planting areas`)
-  }, [treeIconsLoaded])
+  }, [treeIconsLoaded, treeToggleStates, isMapLoaded])
 
-  // Load map.geojson data for Urimpact users
+  // Load planting areas data for Urimpact users using React Query
+  const { data: plantingAreasData, isLoading: isLoadingPlantingAreas } = usePlantingAreas()
+  
   useEffect(() => {
-    if (userOrg === 'urimpact' && !urimpactImportedGeoJSON) {
-      console.log('🌱 Loading Urimpact map.geojson data...')
-      // Load the map.geojson data
-      fetch('/api/urimpact/map-geojson')
-        .then(response => {
-          console.log('🌱 Map.geojson response status:', response.status)
-          return response.json()
-        })
-        .then(data => {
-          console.log('🌱 Map.geojson raw data:', data)
-          if (data && data.type === 'FeatureCollection' && Array.isArray(data.features)) {
-            // Validate each feature has proper geometry
-            const validFeatures = data.features.filter(feature => 
-              feature && 
-              feature.type === 'Feature' && 
-              feature.geometry && 
-              feature.geometry.type && 
-              feature.geometry.coordinates
-            )
-            
-            if (validFeatures.length > 0) {
-              const validGeoJSON = {
-                type: 'FeatureCollection',
-                features: validFeatures
-              }
-              setUrimpactImportedGeoJSON(validGeoJSON)
-              console.log('✅ Loaded Urimpact map.geojson data:', validGeoJSON)
-              console.log('✅ Features count:', validFeatures.length)
-              
-              // Load tree icon and generate tree distribution
-              console.log('🌳 Loading tree icon and generating distribution...')
-              loadTreeIcon().then(() => {
-                console.log('🌳 Tree icon loaded, generating distribution...')
-                generateTreeDistribution(validGeoJSON)
-              }).catch(error => {
-                console.error('❌ Error loading tree icon:', error)
-                // Still try to generate trees with fallback
-                generateTreeDistribution(validGeoJSON)
-              })
-            } else {
-              console.error('❌ No valid features found in GeoJSON data')
-              setUrimpactImportedGeoJSON(null)
-            }
-          } else {
-            console.error('❌ Invalid GeoJSON data structure:', data)
-            setUrimpactImportedGeoJSON(null)
+    if (userOrg === 'urimpact' && plantingAreasData && !urimpactImportedGeoJSON) {
+      console.log('🌱 Loading Urimpact planting areas data...')
+      
+      if (plantingAreasData && plantingAreasData.type === 'FeatureCollection' && Array.isArray(plantingAreasData.features)) {
+        // Validate each feature has proper geometry
+        const validFeatures = plantingAreasData.features.filter(feature => 
+          feature && 
+          feature.type === 'Feature' && 
+          feature.geometry && 
+          feature.geometry.type && 
+          feature.geometry.coordinates
+        )
+        
+        if (validFeatures.length > 0) {
+          const validGeoJSON: FeatureCollection = {
+            type: 'FeatureCollection',
+            features: validFeatures
           }
-        })
-        .catch(error => {
-          console.error('❌ Failed to load Urimpact map.geojson:', error)
+          setUrimpactImportedGeoJSON(validGeoJSON)
+          console.log('✅ Loaded Urimpact planting areas data:', validGeoJSON)
+          console.log('✅ Features count:', validFeatures.length)
+          
+          // Load tree icon and generate tree distribution
+          console.log('🌳 Loading tree icon and generating distribution...')
+          loadTreeIcon().then(() => {
+            console.log('🌳 Tree icon loaded, generating distribution...')
+            if (isMapLoaded) {
+              generateTreeDistribution(validGeoJSON as any)
+            }
+          }).catch(error => {
+            console.error('❌ Error loading tree icon:', error)
+            // Still try to generate trees with fallback
+            if (isMapLoaded) {
+              generateTreeDistribution(validGeoJSON as any)
+            }
+          })
+        } else {
+          console.error('❌ No valid features found in planting areas data')
           setUrimpactImportedGeoJSON(null)
-        })
+        }
+      } else {
+        console.error('❌ Invalid GeoJSON data structure in planting areas:', plantingAreasData)
+        setUrimpactImportedGeoJSON(null)
+      }
     }
-  }, [userOrg, urimpactImportedGeoJSON, loadTreeIcon, generateTreeDistribution])
+  }, [userOrg, plantingAreasData, urimpactImportedGeoJSON, loadTreeIcon, generateTreeDistribution, isMapLoaded])
 
   // Cleanup tree icon on unmount
   useEffect(() => {
@@ -987,16 +1023,16 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     }
   }, [savedTitle, user?.organization?.name, mapTitle, getDefaultTitle])
 
-  // Auto-save title with debounce (only when not editing)
+  // Auto-save title with debounce (only when user actually changes it)
   useEffect(() => {
-    if (userOrg === 'urimpact' && mapTitle && mapTitle !== getDefaultTitle('urimpact') && !isEditingTitle) {
+    if (userOrg === 'urimpact' && mapTitle && mapTitle !== getDefaultTitle('urimpact') && !isEditingTitle && mapTitle !== savedTitle) {
       const timeoutId = setTimeout(() => {
         saveMapTitleMutation.mutate(mapTitle)
       }, 2000) // Save after 2 seconds of no changes
       
       return () => clearTimeout(timeoutId)
     }
-  }, [mapTitle, userOrg, saveMapTitleMutation, isEditingTitle, getDefaultTitle])
+  }, [mapTitle, userOrg, saveMapTitleMutation, isEditingTitle, getDefaultTitle, savedTitle])
 
   // Handle title editing
   const handleTitleDoubleClick = useCallback(() => {
@@ -1156,7 +1192,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
   })
 
   // Organization-specific layer configuration
-  const layersConfig = useMemo(() => {
+  const layersConfig: MapLayer[] = useMemo(() => {
     const userOrg = user?.organization?.name?.toLowerCase()
     
     // Helper function to get opacity from saved settings or use default
@@ -1192,21 +1228,25 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     if (userOrg === 'jeddah') {
       // Jeddah organization - show only Saudi Arabia data
       return [
-        { id: 'territories', name: 'Territories', type: 'territories', visible: true, opacity: getOpacity('territories', 0.5), color: getColor('territories', '#3b82f6') },
-        { id: 'admin-boundaries', name: 'Administrative Boundaries', type: 'admin-boundaries', visible: true, opacity: getOpacity('admin-boundaries', 0.1), color: getColor('admin-boundaries', '#3b82f6') },
-        { id: 'customer-locations', name: 'Customer Locations', type: 'customer-locations', visible: true, opacity: getOpacity('customer-locations', 1), color: getColor('customer-locations', '#ef4444') },
+        { id: 'territories', name: 'Territories', type: 'territories', visible: true, opacity: getOpacity('territories', 0.5), color: getColor('territories', '#3b82f6'), data: { type: 'FeatureCollection', features: [] } },
+        { id: 'admin-boundaries', name: 'Administrative Boundaries', type: 'admin-boundaries', visible: true, opacity: getOpacity('admin-boundaries', 0.1), color: getColor('admin-boundaries', '#3b82f6'), data: { type: 'FeatureCollection', features: [] } },
+        { id: 'customer-locations', name: 'Customer Locations', type: 'customer-locations', visible: true, opacity: getOpacity('customer-locations', 1), color: getColor('customer-locations', '#ef4444'), data: { type: 'FeatureCollection', features: [] } },
       ]
     } else if (userOrg === 'urimpact') {
       // Urimpact organization - show Saudi Arabia boundary data and imported GeoJSON
       const layers = [
-        { id: 'admin-boundaries', name: 'Saudi Arabia Boundaries', type: 'admin-boundaries', visible: true, opacity: getOpacity('admin-boundaries', 0.1), color: getColor('admin-boundaries', '#3b82f6') },
+        { id: 'admin-boundaries', name: 'Saudi Arabia Boundaries', type: 'admin-boundaries', visible: true, opacity: getOpacity('admin-boundaries', 0.1), color: getColor('admin-boundaries', '#3b82f6'), data: { type: 'FeatureCollection', features: [] } },
       ]
       
+      // Use planting areas data from React Query hook or fallback to state
+      const plantingData = plantingAreasData || urimpactImportedGeoJSON
+      
       // Check if we have planting areas data and if there are 7 or fewer features
-      if (urimpactImportedGeoJSON && urimpactImportedGeoJSON.features.length > 0) {
-        if (urimpactImportedGeoJSON.features.length <= 7) {
+      if (plantingData && plantingData.features && plantingData.features.length > 0) {
+        console.log('🌱 Urimpact layersConfig: Found planting areas data:', plantingData.features.length, 'features')
+        if (plantingData.features.length <= 7) {
           // Show individual planting areas
-          urimpactImportedGeoJSON.features.forEach((feature, index) => {
+          plantingData.features.forEach((feature, index) => {
             const zoneName = feature.properties?.zone_name || feature.properties?.name || `Planting Area ${index + 1}`
             layers.push({
               id: `planting-area-${index}`,
@@ -1215,7 +1255,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
               visible: true,
               opacity: getOpacity(`planting-area-${index}`, 0.1),
               color: getColor(`planting-area-${index}`, feature.properties?.color || '#8b5cf6'),
-              data: { type: 'FeatureCollection', features: [feature] } as any
+              data: { type: 'FeatureCollection', features: [feature] } as FeatureCollection
             })
           })
         } else {
@@ -1226,22 +1266,25 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
             type: 'imported-geojson',
             visible: true,
             opacity: getOpacity('imported-geojson', 0.1),
-            color: getColor('imported-geojson', '#8b5cf6')
+            color: getColor('imported-geojson', '#8b5cf6'),
+            data: plantingData as FeatureCollection
           })
         }
+      } else {
+        console.log('🌱 Urimpact layersConfig: No planting areas data found')
       }
       
       return layers
     } else if (userOrg === 'hooptrailer') {
       // Hooptrailer organization - show only US data
       return [
-        { id: 'territories', name: 'Territories', type: 'territories', visible: true, opacity: getOpacity('territories', 0.5), color: getColor('territories', '#3b82f6') },
-        { id: 'current-locations', name: 'Current Locations', type: 'current-locations', visible: true, opacity: getOpacity('current-locations', 1), color: getColor('current-locations', '#22c55e') },
-        { id: 'potential-locations', name: 'Potential Locations', type: 'potential-locations', visible: true, opacity: getOpacity('potential-locations', 1), color: getColor('potential-locations', '#f59e0b') },
-        { id: 'us-states', name: 'US States', type: 'us-states', visible: true, opacity: getOpacity('us-states', 0.2), color: getColor('us-states', '#8b5cf6') },
-        { id: 'rivers', name: 'Rivers', type: 'rivers', visible: false, opacity: getOpacity('rivers', 1), color: getColor('rivers', '#06b6d4') },
-        { id: 'population-analysis', name: 'Population Analysis', type: 'population-analysis', visible: false, opacity: getOpacity('population-analysis', 0.7), color: getColor('population-analysis', '#ec4899') },
-        { id: 'expansion-analysis', name: 'Expansion Analysis', type: 'expansion-analysis', visible: false, opacity: getOpacity('expansion-analysis', 0.7), color: getColor('expansion-analysis', '#f43f5e') },
+        { id: 'territories', name: 'Territories', type: 'territories', visible: true, opacity: getOpacity('territories', 0.5), color: getColor('territories', '#3b82f6'), data: { type: 'FeatureCollection', features: [] } },
+        { id: 'current-locations', name: 'Current Locations', type: 'current-locations', visible: true, opacity: getOpacity('current-locations', 1), color: getColor('current-locations', '#22c55e'), data: { type: 'FeatureCollection', features: [] } },
+        { id: 'potential-locations', name: 'Potential Locations', type: 'potential-locations', visible: true, opacity: getOpacity('potential-locations', 1), color: getColor('potential-locations', '#f59e0b'), data: { type: 'FeatureCollection', features: [] } },
+        { id: 'us-states', name: 'US States', type: 'us-states', visible: true, opacity: getOpacity('us-states', 0.2), color: getColor('us-states', '#8b5cf6'), data: { type: 'FeatureCollection', features: [] } },
+        { id: 'rivers', name: 'Rivers', type: 'rivers', visible: false, opacity: getOpacity('rivers', 1), color: getColor('rivers', '#06b6d4'), data: { type: 'FeatureCollection', features: [] } },
+        { id: 'population-analysis', name: 'Population Analysis', type: 'population-analysis', visible: false, opacity: getOpacity('population-analysis', 0.7), color: getColor('population-analysis', '#ec4899'), data: { type: 'FeatureCollection', features: [] } },
+        { id: 'expansion-analysis', name: 'Expansion Analysis', type: 'expansion-analysis', visible: false, opacity: getOpacity('expansion-analysis', 0.7), color: getColor('expansion-analysis', '#f43f5e'), data: { type: 'FeatureCollection', features: [] } },
       ]
     } else {
       // Superadmin or unknown - show all layers
@@ -1257,7 +1300,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         { id: 'rivers', name: 'Rivers', type: 'rivers', visible: false, opacity: getOpacity('rivers', 1), color: getColor('rivers', '#06b6d4') },
       ]
     }
-  }, [user?.organization?.name, layerOpacitySettings])
+  }, [user?.organization?.name, layerOpacitySettings, plantingAreasData, urimpactImportedGeoJSON])
 
   const [layersConfigState, setLayersConfigState] = useState(layersConfig)
 
@@ -1727,7 +1770,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
                 source: 'trees',
                 layout: {
                   'icon-image': 'tree-icon',
-                  'icon-size': 0.5,
+                  'icon-size': 1.5,
                   'icon-allow-overlap': true,
                   'icon-ignore-placement': true
                 }
@@ -1738,8 +1781,8 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
                 type: 'circle',
                 source: 'trees',
                 paint: {
-                  'circle-color': '#16a34a',
-                  'circle-radius': 4,
+                  'circle-color': '#22c55e',
+                  'circle-radius': 6,
                   'circle-stroke-color': '#16a34a',
                   'circle-stroke-width': 2
                 }
@@ -3139,7 +3182,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         {/* Map Title - Draggable and Centered */}
         <div 
           className={cn(
-            "absolute z-20 bg-white/95 backdrop-blur-md px-6 py-2 rounded-xl shadow-2xl border-2 border-white/20 select-none hover:shadow-3xl transition-all duration-300",
+            "absolute z-20 bg-white/95 backdrop-blur-md px-4 py-1 rounded-lg shadow-2xl border-2 border-white/20 select-none hover:shadow-3xl transition-all duration-300",
             isEditingTitle ? "cursor-text ring-2 ring-blue-500/50" : "cursor-move hover:scale-105"
           )}
           style={{
@@ -3159,14 +3202,14 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
                 onChange={(e) => setMapTitle(e.target.value)}
                 onKeyDown={handleTitleKeyDown}
                 onBlur={handleTitleBlur}
-                className="bg-transparent border-none outline-none text-xl font-bold text-center min-w-0 flex-1 placeholder:text-gray-400 focus:placeholder:text-gray-300 text-gray-800"
+                className="bg-transparent border-none outline-none text-lg font-bold text-center min-w-0 flex-1 placeholder:text-gray-400 focus:placeholder:text-gray-300 text-gray-800"
                 placeholder="Enter map title"
                 style={{ minWidth: '400px', fontFamily: 'Inter, system-ui, sans-serif' }}
                 autoFocus
               />
             ) : (
               <div 
-                className="text-xl font-bold text-center min-w-0 flex-1 cursor-pointer hover:text-blue-600 transition-colors text-gray-800"
+                className="text-lg font-bold text-center min-w-0 flex-1 cursor-pointer hover:text-blue-600 transition-colors text-gray-800"
                 style={{ minWidth: '400px', fontFamily: 'Inter, system-ui, sans-serif' }}
                 onDoubleClick={handleTitleDoubleClick}
               >
@@ -3222,18 +3265,56 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Area:</span>
-                <span className="font-medium">{carbonData.area.toFixed(2)} hectares</span>
+                <span className="font-medium">{carbonData.area} hectares</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">CO₂ Sequestration:</span>
+                <span className="text-muted-foreground">Annual CO₂:</span>
                 <span className="font-medium text-green-600">
-                  {carbonData.carbonSequestration.toLocaleString()} kg/year
+                  {carbonData.annualCO2} tons/year
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Lifetime CO₂:</span>
+                <span className="font-medium text-green-600">
+                  {carbonData.lifetimeCO2} tons
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Survival Rate:</span>
+                <span className="font-medium text-blue-600">
+                  {carbonData.survivalRate}%
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Biodiversity Score:</span>
+                <span className="font-medium text-purple-600">
+                  {carbonData.biodiversityScore}/100
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Temp Reduction:</span>
+                <span className="font-medium text-orange-600">
+                  {carbonData.temperatureReduction}%
                 </span>
               </div>
               <div className="pt-2 border-t">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Equivalent to:</span>
-                  <span>{(carbonData.carbonSequestration / 1000).toFixed(1)} tons CO₂/year</span>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="flex justify-between">
+                    <span>Species:</span>
+                    <span>{carbonData.speciesCount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Jobs Created:</span>
+                    <span>{carbonData.jobsCreated}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Economic Value:</span>
+                    <span>${carbonData.economicValue.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Student Satisfaction:</span>
+                    <span>+{carbonData.studentSatisfaction}%</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -3337,7 +3418,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
             </div>
           </>
         )}
-        <Legend layers={layers} />
+        <Legend layers={layers} userOrg={userOrg} />
         <div className="md:hidden absolute top-4 right-4 z-10">
           <Drawer>
             <DrawerTrigger asChild>
@@ -3363,6 +3444,14 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
                   userOrg={userOrg}
                   showAllAdminBoundaries={showAllAdminBoundaries}
                   onToggleAllAdminBoundaries={setShowAllAdminBoundaries}
+                  treeToggleStates={treeToggleStates}
+                  onTreeToggle={(areaId, enabled) => {
+                    setTreeToggleStates(prev => ({ ...prev, [areaId]: enabled }))
+                    // Regenerate trees when toggles change
+                    if (urimpactImportedGeoJSON && isMapLoaded) {
+                      generateTreeDistribution(urimpactImportedGeoJSON)
+                    }
+                  }}
                 />
               </div>
             </DrawerContent>
@@ -3405,6 +3494,14 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
           userOrg={userOrg}
           showAllAdminBoundaries={showAllAdminBoundaries}
           onToggleAllAdminBoundaries={setShowAllAdminBoundaries}
+          treeToggleStates={treeToggleStates}
+          onTreeToggle={(areaId, enabled) => {
+            setTreeToggleStates(prev => ({ ...prev, [areaId]: enabled }))
+            // Regenerate trees when toggles change
+            if (urimpactImportedGeoJSON && isMapLoaded) {
+              generateTreeDistribution(urimpactImportedGeoJSON)
+            }
+          }}
         />
       </div>
       )}

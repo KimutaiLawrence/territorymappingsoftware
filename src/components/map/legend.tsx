@@ -7,6 +7,7 @@ import { Circle, Square } from 'lucide-react'
 
 interface LegendProps {
   layers: MapLayer[]
+  userOrg?: string
 }
 
 const getLegendData = (layer: MapLayer) => {
@@ -33,26 +34,97 @@ const getLegendData = (layer: MapLayer) => {
   return []
 }
 
-export function Legend({ layers }: LegendProps) {
+export function Legend({ layers, userOrg }: LegendProps) {
   const [visibleLayers, setVisibleLayers] = useState<MapLayer[]>([])
 
   useEffect(() => {
-    setVisibleLayers(
-      layers.filter(
-        l =>
-          l.visible &&
-          (l.type.includes('analysis') ||
-            l.type.includes('location') ||
-            l.type === 'territories' ||
-            l.type === 'customer-locations' ||
-            l.type === 'admin-boundaries' ||
-            l.type === 'imported-geojson' ||
-            l.id.startsWith('planting-area-'))
-      )
+    const filtered = layers.filter(
+      l =>
+        l.visible &&
+        (l.type.includes('analysis') ||
+          l.type.includes('location') ||
+          l.type === 'territories' ||
+          l.type === 'customer-locations' ||
+          l.type === 'admin-boundaries' ||
+          l.type === 'imported-geojson' ||
+          l.id.startsWith('planting-area-'))
     )
+    setVisibleLayers(filtered)
   }, [layers])
 
-  const legendLayers = visibleLayers.filter(l => getLegendData(l).length > 0 || l.type.includes('location') || l.type === 'territories' || l.type === 'customer-locations' || l.type === 'admin-boundaries' || l.type === 'imported-geojson' || l.id.startsWith('planting-area-'))
+  // For Urimpact, hardcode the zones to avoid duplication issues
+  if (userOrg === 'urimpact') {
+    const urimpactZones = [
+      { name: 'Zone E - Experimental Desert', color: '#8b5cf6', opacity: 0.7 },
+      { name: 'Zone F - Biodiversity Block', color: '#10b981', opacity: 0.7 },
+      { name: 'Zone G - Native Reserve', color: '#f59e0b', opacity: 0.7 },
+      { name: 'Zone A - Pioneer Species', color: '#ef4444', opacity: 0.7 },
+      { name: 'Zone B - Desert Adapted', color: '#3b82f6', opacity: 0.7 },
+      { name: 'Zone C - Salt Tolerant', color: '#8b5cf6', opacity: 0.7 },
+      { name: 'Zone D - Wind Break', color: '#06b6d4', opacity: 0.7 }
+    ]
+    
+    return (
+      <div className="absolute bottom-[80px] right-4 z-10 w-48">
+        <Card className="bg-background/75 backdrop-blur-sm">
+          <CardHeader className="p-2">
+            <CardTitle className="text-xs text-center">Legend</CardTitle>
+          </CardHeader>
+          <CardContent className="p-2">
+            {/* Administrative Boundaries */}
+            {visibleLayers.some(l => l.type === 'admin-boundaries') && (
+              <div className="mb-2">
+                <div className="flex items-center space-x-2">
+                  <Square className="h-3 w-3 text-blue-500 fill-current opacity-30" />
+                  <span className="text-xs">Administrative Boundaries</span>
+                </div>
+              </div>
+            )}
+            
+            {/* Urimpact Zones */}
+            <div className="space-y-1">
+              {urimpactZones.map((zone, index) => (
+                <div key={index} className="flex items-center space-x-2">
+                  <div
+                    className="w-3 h-3 rounded border"
+                    style={{ 
+                      backgroundColor: zone.color,
+                      opacity: zone.opacity
+                    }}
+                  />
+                  <span className="text-xs">{zone.name}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Filter out duplicates and ensure proper legend display for other organizations
+  const seenIds = new Set<string>()
+  const legendLayers = visibleLayers.filter(l => {
+    // Remove duplicates by ID
+    if (seenIds.has(l.id)) return false
+    seenIds.add(l.id)
+    
+    // Show analysis layers with data
+    if (getLegendData(l).length > 0) return true
+    
+    // Show location and territory layers
+    if (l.type.includes('location') || l.type === 'territories' || l.type === 'customer-locations' || l.type === 'admin-boundaries') return true
+    
+    // For planting areas, show individual areas if they exist, otherwise show main layer
+    if (l.id.startsWith('planting-area-')) return true
+    
+    // Show main imported-geojson layer only if it's NOT a planting area (to avoid duplicates)
+    if (l.type === 'imported-geojson' && l.id === 'imported-geojson' && !l.name.toLowerCase().includes('planting')) {
+      return true
+    }
+    
+    return false
+  })
 
   if (legendLayers.length === 0) {
     return null
@@ -163,6 +235,24 @@ export function Legend({ layers }: LegendProps) {
                 <div className="flex items-center space-x-2">
                   <Square className="h-3 w-3 text-blue-500 fill-current opacity-30" />
                   <span className="text-xs">Administrative Boundaries</span>
+                </div>
+              )}
+              {layer.id.startsWith('planting-area-') && (
+                <div className="flex items-center space-x-2">
+                  <div
+                    className="w-3 h-3 rounded border"
+                    style={{ 
+                      backgroundColor: layer.color || '#8b5cf6',
+                      opacity: layer.opacity || 0.7
+                    }}
+                  />
+                  <span className="text-xs">{layer.name}</span>
+                </div>
+              )}
+              {layer.type === 'imported-geojson' && !layer.name.toLowerCase().includes('planting') && (
+                <div className="flex items-center space-x-2">
+                  <Square className="h-3 w-3 text-green-500 fill-current" />
+                  <span className="text-xs">{layer.name}</span>
                 </div>
               )}
             </div>

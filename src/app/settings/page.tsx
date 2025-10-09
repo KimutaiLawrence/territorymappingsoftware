@@ -9,14 +9,7 @@ import { Plus } from 'lucide-react'
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '@/hooks/use-api'
 import { useAuth } from '@/contexts/auth-context'
 import Loader from '@/components/common/loader'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+// Table components removed as Urimpact users use UserManagement component
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +30,7 @@ import { DataTable } from '@/components/common/data-table'
 import { ColumnDef } from '@tanstack/react-table'
 import { useRBAC } from '@/hooks/use-rbac'
 import { useMemo } from 'react'
+import { UserManagement } from '@/components/urimpact/user-management'
 
 export default function SettingsPage() {
   const { user: currentUser } = useAuth()
@@ -49,6 +43,10 @@ export default function SettingsPage() {
 
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | undefined>(undefined)
+
+  // Check if user is from Urimpact organization
+  const userOrg = currentUser?.organization?.name?.toLowerCase()
+  const isUrimpact = userOrg === 'urimpact'
 
   const filteredUsers = useMemo(() => {
     if (!usersData?.users) return []
@@ -160,9 +158,12 @@ export default function SettingsPage() {
   return (
     <ProtectedRoute allowedRoles={['admin', 'superadmin']}>
       <DashboardLayout>
-        <div className="h-full flex flex-col p-4 space-y-4">
-          <div className="flex justify-between items-center shrink-0">
-            <h1 className="text-2xl font-bold">User Management</h1>
+        {isUrimpact ? (
+          <UserManagement />
+        ) : (
+          <div className="h-full flex flex-col p-4 space-y-4">
+            <div className="flex justify-between items-center shrink-0">
+              <h1 className="text-2xl font-bold">User Management</h1>
             {can('create', 'user') && (
               <Button onClick={() => setIsFormOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" /> Add User
@@ -202,7 +203,8 @@ export default function SettingsPage() {
               />
             </DialogContent>
           </Dialog>
-        </div>
+          </div>
+        )}
       </DashboardLayout>
     </ProtectedRoute>
   )

@@ -4,11 +4,22 @@ const FLASK_BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5
 
 export async function GET(request: NextRequest) {
   try {
-    // Proxy the request to the Flask backend
+    // Get authorization header from the request
+    const authHeader = request.headers.get('authorization')
+    
+    if (!authHeader) {
+      return NextResponse.json(
+        { error: 'Authorization header required' },
+        { status: 401 }
+      )
+    }
+
+    // Proxy the request to the Flask backend with authentication
     const response = await fetch(`${FLASK_BACKEND_URL}/api/urimpact/map-geojson`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': authHeader,
       },
     })
 

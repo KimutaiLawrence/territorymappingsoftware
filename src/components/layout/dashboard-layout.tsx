@@ -3,7 +3,6 @@
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/contexts/auth-context'
@@ -17,7 +16,6 @@ import {
   Menu,
   PanelLeftClose,
   PanelRightClose,
-  LayoutDashboard,
   Target,
   Globe2,
   Building,
@@ -45,10 +43,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     router.push('/login')
   }
 
+  // Get user organization
+  const userOrg = user?.organization?.name?.toLowerCase()
+
   // Organization-aware navigation
   const getNavigation = () => {
-    const userOrg = user?.organization?.name?.toLowerCase()
-    
     if (userOrg === 'jeddah') {
       return [
         { name: 'Map', href: '/dashboard', icon: Map },
@@ -56,10 +55,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         { name: 'Customer Locations', href: '/locations', icon: MapPin, color: 'text-green-500' },
         { name: 'Datasets', href: '/datasets', icon: Database },
       ]
-    } else if (userOrg === 'urimpact') {
+    } else     if (userOrg === 'urimpact') {
       return [
         { name: 'Map', href: '/dashboard', icon: Map },
-        { name: 'Saudi Arabia Boundaries', href: '/territories', icon: Globe2, color: 'text-sky-500' },
+        { name: 'Planting Areas', href: '/planting-areas', icon: Target, color: 'text-green-500' },
         { name: 'Datasets', href: '/datasets', icon: Database },
       ]
     } else if (userOrg === 'hooptrailer') {
@@ -88,6 +87,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const adminNavigation = [
     { name: 'Settings', href: '/settings', icon: Settings },
   ]
+
+  // User management is handled under Settings page
 
   if (user?.is_superadmin) {
     adminNavigation.unshift({
