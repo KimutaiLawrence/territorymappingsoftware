@@ -634,7 +634,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
   const [isGeoJSONImporterOpen, setIsGeoJSONImporterOpen] = useState(false)
   const [isExportConfigOpen, setIsExportConfigOpen] = useState(false)
   const [exportMode, setExportMode] = useState<'export' | 'print'>('export')
-  const [mapTitle, setMapTitle] = useState('Tree Planting Potential - Majmaah University')
+  const [mapTitle, setMapTitle] = useState('Map')
   const [titlePosition, setTitlePosition] = useState({ x: 0, y: 20 }) // Positioned to cover toolbar line
   const [isDraggingTitle, setIsDraggingTitle] = useState(false)
   const [titleDragStart, setTitleDragStart] = useState({ x: 0, y: 0 })
@@ -643,6 +643,20 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
   // Map title hooks
   const { data: savedTitle } = useMapTitle()
   const saveMapTitleMutation = useSaveMapTitle()
+  
+  // Organization-specific default titles
+  const getDefaultTitle = (orgName: string) => {
+    switch (orgName?.toLowerCase()) {
+      case 'urimpact':
+        return 'Tree Planting Potential - Majmaah University'
+      case 'jeddah':
+        return 'Jeddah Territory Management'
+      case 'hooptrailer':
+        return 'HoopTrailer Territory Management'
+      default:
+        return 'Map'
+    }
+  }
   const [treeIconsLoaded, setTreeIconsLoaded] = useState(false)
   const [carbonData, setCarbonData] = useState<{
     totalTrees: number
@@ -939,23 +953,28 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     }
   }, [isDraggingTitle, handleTitleMouseMove, handleTitleMouseUp])
 
-  // Load saved title
+  // Load saved title or set organization default
   useEffect(() => {
     if (savedTitle && savedTitle !== mapTitle) {
       setMapTitle(savedTitle)
+    } else if (!savedTitle && user?.organization?.name) {
+      const defaultTitle = getDefaultTitle(user.organization.name)
+      if (mapTitle === 'Map' && defaultTitle !== 'Map') {
+        setMapTitle(defaultTitle)
+      }
     }
-  }, [savedTitle])
+  }, [savedTitle, user?.organization?.name, mapTitle, getDefaultTitle])
 
   // Auto-save title with debounce (only when not editing)
   useEffect(() => {
-    if (userOrg === 'urimpact' && mapTitle && mapTitle !== 'Territory Mapper' && !isEditingTitle) {
+    if (userOrg === 'urimpact' && mapTitle && mapTitle !== getDefaultTitle('urimpact') && !isEditingTitle) {
       const timeoutId = setTimeout(() => {
         saveMapTitleMutation.mutate(mapTitle)
       }, 2000) // Save after 2 seconds of no changes
       
       return () => clearTimeout(timeoutId)
     }
-  }, [mapTitle, userOrg, saveMapTitleMutation, isEditingTitle])
+  }, [mapTitle, userOrg, saveMapTitleMutation, isEditingTitle, getDefaultTitle])
 
   // Handle title editing
   const handleTitleDoubleClick = useCallback(() => {
@@ -3068,7 +3087,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
                 onKeyDown={handleTitleKeyDown}
                 onBlur={handleTitleBlur}
                 className="bg-transparent border-none outline-none text-2xl font-bold text-center min-w-0 flex-1 placeholder:text-gray-400 focus:placeholder:text-gray-300 text-gray-800"
-                placeholder="Enter map title (e.g., Tree Planting Potential - Majmaah University)"
+                placeholder="Enter map title"
                 style={{ minWidth: '400px', fontFamily: 'Inter, system-ui, sans-serif' }}
                 autoFocus
               />
