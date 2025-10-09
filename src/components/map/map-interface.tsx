@@ -758,127 +758,48 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         const area = turf.area(feature)
         totalArea += area
         
-        // Only show trees for the first area by default, or if explicitly toggled on
-        const shouldShowTrees = index === 0 || treeToggleStates[`area-${index}`]
+        // Generate trees based on area (1 tree per 100 square meters)
+        const treesPerHectare = 100 // 100 trees per hectare
+        const treesInArea = Math.floor((area / 10000) * treesPerHectare) // Convert to hectares
+        totalTrees += treesInArea
         
-        if (shouldShowTrees) {
-          // Generate more trees with better distribution
-          const treesPerHectare = 150 // 150 trees per hectare (increased from 100)
-          const treesInArea = Math.floor((area / 10000) * treesPerHectare) // Convert to hectares
-          totalTrees += treesInArea
-          
-          console.log(`🌳 Area ${index + 1}: ${(area / 10000).toFixed(2)} hectares, ${treesInArea} trees`)
+        console.log(`🌳 Area ${index + 1}: ${(area / 10000).toFixed(2)} hectares, ${treesInArea} trees`)
 
-          // Generate evenly distributed points within the polygon using grid-based approach
-          const bbox = turf.bbox(feature)
-          const [minX, minY, maxX, maxY] = bbox
-          const width = maxX - minX
-          const height = maxY - minY
+        // Generate random points within the polygon
+        const bbox = turf.bbox(feature)
+        const attempts = treesInArea * 3 // Try 3x the number of trees to get good distribution
+        
+        let treesGenerated = 0
+        for (let i = 0; i < attempts && treesGenerated < treesInArea; i++) {
+          const randomPoint = turf.randomPoint(1, {
+            bbox: bbox
+          })
           
-          // Calculate grid spacing based on area and desired tree density
-          const gridSpacing = Math.sqrt((area / treesInArea) * 1.5) // Reduced spacing for more trees
-          const cols = Math.floor(width / gridSpacing)
-          const rows = Math.floor(height / gridSpacing)
-          
-          let treesGenerated = 0
-          const usedPositions = new Set<string>()
-          
-          // Generate trees using grid-based approach with some randomness
-          for (let row = 0; row < rows && treesGenerated < treesInArea; row++) {
-            for (let col = 0; col < cols && treesGenerated < treesInArea; col++) {
-              // Add some randomness to grid positions (reduced for better distribution)
-              const randomOffsetX = (Math.random() - 0.5) * gridSpacing * 0.2
-              const randomOffsetY = (Math.random() - 0.5) * gridSpacing * 0.2
-              
-              const x = minX + (col * gridSpacing) + randomOffsetX
-              const y = minY + (row * gridSpacing) + randomOffsetY
-              
-              const point = turf.point([x, y])
-              const positionKey = `${Math.round(x * 1000)}-${Math.round(y * 1000)}`
-              
-              // Check if point is within polygon and not too close to existing trees
-              if (turf.booleanPointInPolygon(point, feature as any) && !usedPositions.has(positionKey)) {
-                usedPositions.add(positionKey)
-                
-                treeFeatures.push({
-                  type: 'Feature',
-                  geometry: point.geometry,
-                  properties: {
-                    id: `tree-${index}-${treesGenerated}`,
-                    zone: feature.properties?.zone_name || `Planting Area ${index + 1}`,
-                    carbonPerYear: 22, // kg CO2 per tree per year
-                    species: ['Date Palm', 'Acacia', 'Sidr', 'Ghaf', 'Olive'][Math.floor(Math.random() * 5)],
-                    height: Math.random() * 50 + 20, // 20-70cm height
-                    planted: '2025-03-15'
-                  }
-                })
-                treesGenerated++
+          if (turf.booleanPointInPolygon(randomPoint.features[0], feature)) {
+            treeFeatures.push({
+              type: 'Feature',
+              geometry: randomPoint.features[0].geometry,
+              properties: {
+                id: `tree-${index}-${i}`,
+                zone: feature.properties?.zone_name || `Planting Area ${index + 1}`,
+                carbonPerYear: 22 // kg CO2 per tree per year
               }
-            }
+            })
+            treesGenerated++
           }
-          
-          // If we need more trees, fill remaining with random points
-          if (treesGenerated < treesInArea) {
-            const remainingTrees = treesInArea - treesGenerated
-            const attempts = remainingTrees * 8 // Increased attempts for better coverage
-            
-            for (let i = 0; i < attempts && treesGenerated < treesInArea; i++) {
-              const randomPoint = turf.randomPoint(1, { bbox: bbox })
-              const positionKey = `${Math.round(randomPoint.features[0].geometry.coordinates[0] * 1000)}-${Math.round(randomPoint.features[0].geometry.coordinates[1] * 1000)}`
-              
-              if (turf.booleanPointInPolygon(randomPoint.features[0], feature as any) && !usedPositions.has(positionKey)) {
-                usedPositions.add(positionKey)
-                
-                treeFeatures.push({
-                  type: 'Feature',
-                  geometry: randomPoint.features[0].geometry,
-                  properties: {
-                    id: `tree-${index}-${treesGenerated}`,
-                    zone: feature.properties?.zone_name || `Planting Area ${index + 1}`,
-                    carbonPerYear: 22,
-                    species: ['Date Palm', 'Acacia', 'Sidr', 'Ghaf', 'Olive'][Math.floor(Math.random() * 5)],
-                    height: Math.random() * 50 + 20,
-                    planted: '2025-03-15'
-                  }
-                })
-                treesGenerated++
-              }
-            }
-          }
-          console.log(`🌳 Generated ${treesGenerated} trees for area ${index + 1}`)
-        } else {
-          console.log(`🌳 Area ${index + 1}: Trees disabled (Phase ${index + 1})`)
         }
+        console.log(`🌳 Generated ${treesGenerated} trees for area ${index + 1}`)
       }
     })
 
-         // Calculate comprehensive carbon sequestration data from URIMPACT report
-         const annualCO2 = 18 // tons CO2 annually
-         const lifetimeCO2 = 450 // tons CO2 lifetime potential
-         const survivalRate = 87 // percentage
-         const biodiversityScore = 78 // out of 100
-         const temperatureReduction = 15 // percentage
-         const speciesCount = 5 // native species
-         const jobsCreated = 12
-         const economicValue = 8500 // USD
-         const studentSatisfaction = 35 // percentage increase
-         const mentalWellbeing = 68 // percentage improvement
+    // Calculate carbon sequestration (22 kg CO2 per tree per year)
+    const carbonSequestration = totalTrees * 22
 
-         setCarbonData({
-           totalTrees: 1000, // Fixed to 1000 trees as per URIMPACT report
-           carbonSequestration: annualCO2,
-           area: 2.5, // 2.5 hectares as per URIMPACT report
-           annualCO2,
-           lifetimeCO2,
-           survivalRate,
-           biodiversityScore,
-           temperatureReduction,
-           speciesCount,
-           jobsCreated,
-           economicValue,
-           studentSatisfaction,
-           mentalWellbeing
-         })
+    setCarbonData({
+      totalTrees,
+      carbonSequestration,
+      area: totalArea / 10000 // Convert to hectares
+    })
 
     // Clean up existing tree layer and source
     if (mapRef.current.getLayer('trees')) {
@@ -904,7 +825,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         source: 'trees',
         layout: {
           'icon-image': 'tree-icon',
-          'icon-size': 1.5, // Increased size for better visibility
+          'icon-size': 0.5, // Increased size for better visibility
           'icon-allow-overlap': true,
           'icon-ignore-placement': true
         }
@@ -918,7 +839,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         source: 'trees',
         paint: {
           'circle-color': '#22c55e',
-          'circle-radius': 6, // Increased size for better visibility
+          'circle-radius': 4, // Increased size for better visibility
           'circle-stroke-color': '#16a34a',
           'circle-stroke-width': 2
         }
@@ -3380,6 +3301,11 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
             onMouseDown={handleCarbonMouseDown}
           >
             <div className="flex items-center gap-2 mb-3">
+              <img 
+                src="/urimpactlogo.png" 
+                alt="Urimpact Logo" 
+                className="w-8 h-8 object-contain"
+              />
               <div className="w-3 h-3 bg-green-500 rounded-full"></div>
               <h3 className="font-semibold text-lg">Carbon Sequestration</h3>
               <div className="ml-auto text-xs text-muted-foreground">
