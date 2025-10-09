@@ -867,6 +867,17 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
               setUrimpactImportedGeoJSON(validGeoJSON)
               console.log('✅ Loaded Urimpact map.geojson data:', validGeoJSON)
               console.log('✅ Features count:', validFeatures.length)
+              
+              // Load tree icon and generate tree distribution
+              console.log('🌳 Loading tree icon and generating distribution...')
+              loadTreeIcon().then(() => {
+                console.log('🌳 Tree icon loaded, generating distribution...')
+                generateTreeDistribution(validGeoJSON)
+              }).catch(error => {
+                console.error('❌ Error loading tree icon:', error)
+                // Still try to generate trees with fallback
+                generateTreeDistribution(validGeoJSON)
+              })
             } else {
               console.error('❌ No valid features found in GeoJSON data')
               setUrimpactImportedGeoJSON(null)
@@ -874,18 +885,6 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
           } else {
             console.error('❌ Invalid GeoJSON data structure:', data)
             setUrimpactImportedGeoJSON(null)
-          }
-            
-            // Load tree icon and generate tree distribution
-            console.log('🌳 Loading tree icon and generating distribution...')
-            loadTreeIcon().then(() => {
-              console.log('🌳 Tree icon loaded, generating distribution...')
-              generateTreeDistribution(data)
-            }).catch(error => {
-              console.error('❌ Error loading tree icon:', error)
-              // Still try to generate trees with fallback
-              generateTreeDistribution(data)
-            })
           }
         })
         .catch(error => {
