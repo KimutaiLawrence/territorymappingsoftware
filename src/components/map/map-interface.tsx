@@ -769,30 +769,80 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
           
           console.log(`🌳 Area ${index + 1}: ${(area / 10000).toFixed(2)} hectares, ${treesInArea} trees`)
 
-          // Generate random points within the polygon
+          // Generate evenly distributed points within the polygon using grid-based approach
           const bbox = turf.bbox(feature)
-          const attempts = treesInArea * 3 // Try 3x the number of trees to get good distribution
+          const [minX, minY, maxX, maxY] = bbox
+          const width = maxX - minX
+          const height = maxY - minY
+          
+          // Calculate grid spacing based on area and desired tree density
+          const gridSpacing = Math.sqrt((area / treesInArea) * 2) // More spacing for better distribution
+          const cols = Math.floor(width / gridSpacing)
+          const rows = Math.floor(height / gridSpacing)
           
           let treesGenerated = 0
-          for (let i = 0; i < attempts && treesGenerated < treesInArea; i++) {
-            const randomPoint = turf.randomPoint(1, {
-              bbox: bbox
-            })
+          const usedPositions = new Set<string>()
+          
+          // Generate trees using grid-based approach with some randomness
+          for (let row = 0; row < rows && treesGenerated < treesInArea; row++) {
+            for (let col = 0; col < cols && treesGenerated < treesInArea; col++) {
+              // Add some randomness to grid positions
+              const randomOffsetX = (Math.random() - 0.5) * gridSpacing * 0.3
+              const randomOffsetY = (Math.random() - 0.5) * gridSpacing * 0.3
+              
+              const x = minX + (col * gridSpacing) + randomOffsetX
+              const y = minY + (row * gridSpacing) + randomOffsetY
+              
+              const point = turf.point([x, y])
+              const positionKey = `${Math.round(x * 1000)}-${Math.round(y * 1000)}`
+              
+              // Check if point is within polygon and not too close to existing trees
+              if (turf.booleanPointInPolygon(point, feature as any) && !usedPositions.has(positionKey)) {
+                usedPositions.add(positionKey)
+                
+                treeFeatures.push({
+                  type: 'Feature',
+                  geometry: point.geometry,
+                  properties: {
+                    id: `tree-${index}-${treesGenerated}`,
+                    zone: feature.properties?.zone_name || `Planting Area ${index + 1}`,
+                    carbonPerYear: 22, // kg CO2 per tree per year
+                    species: ['Date Palm', 'Acacia', 'Sidr', 'Ghaf', 'Olive'][Math.floor(Math.random() * 5)],
+                    height: Math.random() * 50 + 20, // 20-70cm height
+                    planted: '2025-03-15'
+                  }
+                })
+                treesGenerated++
+              }
+            }
+          }
+          
+          // If we need more trees, fill remaining with random points
+          if (treesGenerated < treesInArea) {
+            const remainingTrees = treesInArea - treesGenerated
+            const attempts = remainingTrees * 5
             
-                 if (turf.booleanPointInPolygon(randomPoint.features[0], feature as any)) {
-              treeFeatures.push({
-                type: 'Feature',
-                geometry: randomPoint.features[0].geometry,
-                properties: {
-                  id: `tree-${index}-${i}`,
-                  zone: feature.properties?.zone_name || `Planting Area ${index + 1}`,
-                  carbonPerYear: 22, // kg CO2 per tree per year
-                  species: ['Date Palm', 'Acacia', 'Sidr', 'Ghaf', 'Olive'][Math.floor(Math.random() * 5)],
-                  height: Math.random() * 50 + 20, // 20-70cm height
-                  planted: '2025-03-15'
-                }
-              })
-              treesGenerated++
+            for (let i = 0; i < attempts && treesGenerated < treesInArea; i++) {
+              const randomPoint = turf.randomPoint(1, { bbox: bbox })
+              const positionKey = `${Math.round(randomPoint.features[0].geometry.coordinates[0] * 1000)}-${Math.round(randomPoint.features[0].geometry.coordinates[1] * 1000)}`
+              
+              if (turf.booleanPointInPolygon(randomPoint.features[0], feature as any) && !usedPositions.has(positionKey)) {
+                usedPositions.add(positionKey)
+                
+                treeFeatures.push({
+                  type: 'Feature',
+                  geometry: randomPoint.features[0].geometry,
+                  properties: {
+                    id: `tree-${index}-${treesGenerated}`,
+                    zone: feature.properties?.zone_name || `Planting Area ${index + 1}`,
+                    carbonPerYear: 22,
+                    species: ['Date Palm', 'Acacia', 'Sidr', 'Ghaf', 'Olive'][Math.floor(Math.random() * 5)],
+                    height: Math.random() * 50 + 20,
+                    planted: '2025-03-15'
+                  }
+                })
+                treesGenerated++
+              }
             }
           }
           console.log(`🌳 Generated ${treesGenerated} trees for area ${index + 1}`)
@@ -2624,34 +2674,105 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
           popupRef.current = null
         }
 
-        // Create popup with simple HTML content to avoid context issues
+        // Create modern popup with enhanced styling and better organization
         let html = ''
         try {
           const properties = feature.properties || {}
           console.log('Feature properties:', properties)
           
-          const propertiesHtml = Object.keys(properties).map(key => {
-            const value = properties[key]
+          // Organize properties into categories for better display
+          const importantKeys = ['name', 'zone_name', 'area_hectares', 'trees_planted', 'phase', 'status', 'type']
+          const otherKeys = Object.keys(properties).filter(key => !importantKeys.includes(key))
+          
+          const createPropertyRow = (key: string, value: any) => {
             const displayValue = typeof value === 'object' ? JSON.stringify(value) : String(value)
-            return `<p><strong>${key}:</strong> ${displayValue}</p>`
-          }).join('')
+            const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+            return `
+              <div class="flex items-center py-1 px-2 border-b border-gray-200 last:border-b-0 hover:bg-gray-50">
+                <span class="text-xs font-medium text-gray-600 min-w-0 flex-1 mr-2">${formattedKey}</span>
+                <span class="text-xs text-gray-800 font-normal text-right max-w-40 truncate" title="${displayValue}">${displayValue}</span>
+              </div>
+            `
+          }
           
-          console.log('Properties HTML:', propertiesHtml)
+          const importantProperties = importantKeys
+            .filter(key => properties[key] !== undefined && properties[key] !== null && properties[key] !== '')
+            .map(key => createPropertyRow(key, properties[key]))
+            .join('')
           
-          html = '<div class="max-w-xs p-2">' +
-            '<div class="popup-header">' +
-              '<h3 class="popup-title">' + (properties?.name || 'Feature Details') + '</h3>' +
-              '<div class="popup-actions">' +
-                '<button onclick="window.editFeature()" class="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">Edit</button>' +
-              '</div>' +
-            '</div>' +
-            '<div class="text-sm max-h-48 overflow-y-auto">' +
-              propertiesHtml +
-            '</div>' +
-          '</div>'
+          const otherProperties = otherKeys
+            .filter(key => properties[key] !== undefined && properties[key] !== null && properties[key] !== '')
+            .map(key => createPropertyRow(key, properties[key]))
+            .join('')
+          
+          console.log('Properties HTML:', importantProperties + otherProperties)
+          
+          html = `
+            <div class="w-64 bg-white rounded-lg shadow-lg border border-gray-300 overflow-hidden">
+              <!-- Header -->
+              <div class="bg-gray-100 px-3 py-2 border-b border-gray-300">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-xs font-semibold text-gray-800 truncate">${properties?.name || properties?.zone_name || 'Feature'}</h3>
+                  <div class="flex items-center space-x-1">
+                    <button onclick="window.editFeature()" class="p-1 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded" title="Edit">
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Content -->
+              <div class="max-h-48 overflow-y-auto">
+                ${importantProperties ? `
+                  <div class="bg-gray-50 px-2 py-1 border-b border-gray-200">
+                    <div class="text-xs font-semibold text-gray-700 uppercase tracking-wide">Key Info</div>
+                  </div>
+                  <div>
+                    ${importantProperties}
+                  </div>
+                ` : ''}
+                
+                ${otherProperties ? `
+                  <div class="bg-gray-50 px-2 py-1 border-b border-gray-200">
+                    <div class="text-xs font-semibold text-gray-700 uppercase tracking-wide">Details</div>
+                  </div>
+                  <div>
+                    ${otherProperties}
+                  </div>
+                ` : ''}
+                
+                ${!importantProperties && !otherProperties ? `
+                  <div class="p-4 text-center text-gray-500">
+                    <div class="w-8 h-8 mx-auto mb-2 bg-gray-100 rounded-full flex items-center justify-center">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                      </svg>
+                    </div>
+                    <p class="text-xs">No data available</p>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          `
         } catch (error) {
           console.error('Error creating popup HTML:', error)
-          html = '<div class="max-w-xs p-2"><div class="popup-header"><h3 class="popup-title">Feature Details</h3></div><p>Error loading details</p></div>'
+          html = `
+            <div class="w-64 bg-white rounded-lg shadow-lg border border-gray-300 overflow-hidden">
+              <div class="bg-red-50 px-3 py-2 border-b border-red-200">
+                <div class="flex items-center space-x-1">
+                  <svg class="w-3 h-3 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                  </svg>
+                  <h3 class="text-xs font-semibold text-red-700">Error</h3>
+                </div>
+              </div>
+              <div class="p-3 text-xs text-gray-600">
+                Unable to load feature information.
+              </div>
+            </div>
+          `
         }
         
         // Store feature for edit action
@@ -3209,11 +3330,18 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
               />
             ) : (
               <div 
-                className="text-lg font-bold text-center min-w-0 flex-1 cursor-pointer hover:text-blue-600 transition-colors text-gray-800"
+                className="text-lg font-bold text-center min-w-0 flex-1 cursor-pointer hover:text-blue-600 transition-colors text-gray-800 flex items-center justify-center space-x-2"
                 style={{ minWidth: '400px', fontFamily: 'Inter, system-ui, sans-serif' }}
                 onDoubleClick={handleTitleDoubleClick}
               >
-                {mapTitle}
+                {userOrg === 'urimpact' && (
+                  <img 
+                    src="/urimpactlogo.png" 
+                    alt="Urimpact Logo" 
+                    className="w-6 h-6 object-contain"
+                  />
+                )}
+                <span>{mapTitle}</span>
               </div>
             )}
             <div className="flex items-center gap-3">

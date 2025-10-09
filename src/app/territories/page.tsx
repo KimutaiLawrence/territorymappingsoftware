@@ -36,6 +36,7 @@ export default function TerritoriesPage() {
   const { pagination, setPagination } = usePagination()
   const { data: territoriesData, isLoading: territoriesLoading } = useOrganizationTerritories(pagination)
   const { can, user } = useRBAC()
+  const userOrg = user?.organization?.name?.toLowerCase()
   const deleteTerritory = useOrganizationDeleteTerritory()
   const createTerritory = useOrganizationCreateTerritory()
   const updateTerritory = useOrganizationUpdateTerritory()

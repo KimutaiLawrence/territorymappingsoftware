@@ -133,7 +133,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
                   <aside className="w-full h-full bg-background">
                     <div className="p-4 border-b">
-                      <h2 className="text-lg font-semibold">Territory Mapper</h2>
+                      <div className="flex items-center space-x-2">
+                        {userOrg === 'urimpact' && (
+                          <img 
+                            src="/urimpactlogo.png" 
+                            alt="Urimpact Logo" 
+                            className="w-6 h-6 object-contain"
+                          />
+                        )}
+                        <h2 className="text-lg font-semibold">
+                          {userOrg === 'urimpact' ? 'Urimpact Tree Planting' : 'Territory Mapper'}
+                        </h2>
+                      </div>
                     </div>
                     <nav className="space-y-2 p-4">
                       {navigation.map(item => (
@@ -153,7 +164,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 </SheetContent>
               </Sheet>
             </div>
-            <h1 className="text-xl font-semibold pl-2">Territory Mapper</h1>
+            <div className="flex items-center space-x-2 pl-2">
+              {userOrg === 'urimpact' && (
+                <img 
+                  src="/urimpactlogo.png" 
+                  alt="Urimpact Logo" 
+                  className="w-8 h-8 object-contain"
+                />
+              )}
+              <h1 className="text-xl font-semibold">
+                {userOrg === 'urimpact' ? 'Urimpact Tree Planting' : 'Territory Mapper'}
+              </h1>
+            </div>
           </div>
           <div className="flex items-center space-x-4 pr-4">
             <Badge variant="outline">Beta</Badge>

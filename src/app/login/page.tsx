@@ -32,9 +32,16 @@ export default function LoginPage() {
         {/* Enter your email below to login to your account */}
       {/* </p> */}
       <Card className="p-6">
-        <h2 className="text-2xl font-semibold text-center mb-4">
-        Territory Mapping System
-        </h2>
+        <div className="flex items-center justify-center space-x-3 mb-4">
+          <img 
+            src="/urimpactlogo.png" 
+            alt="Urimpact Logo" 
+            className="w-10 h-10 object-contain"
+          />
+          <h2 className="text-2xl font-semibold text-center">
+            Urimpact Tree Planting System
+          </h2>
+        </div>
         <LoginForm />
       </Card>
     </div>

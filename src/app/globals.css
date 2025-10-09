@@ -58,7 +58,92 @@
   }
 }
 
-/* Custom popup close button styling */
+/* Compact popup styling */
+.maplibregl-popup-content {
+  padding: 0 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  border: 1px solid #d1d5db !important;
+  background: white !important;
+  max-width: 256px !important;
+}
+
+/* Compact popup close button styling */
+.maplibregl-popup-close-button {
+  font-size: 12px !important;
+  width: 20px !important;
+  height: 20px !important;
+  line-height: 20px !important;
+  background-color: rgba(0, 0, 0, 0.6) !important;
+  color: white !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-weight: bold !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  top: 6px !important;
+  right: 6px !important;
+  border: none !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+.maplibregl-popup-close-button:hover {
+  background-color: rgba(0, 0, 0, 0.8) !important;
+  transform: scale(1.1) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Popup arrow styling */
+.maplibregl-popup-tip {
+  border-top-color: white !important;
+  border-bottom-color: white !important;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1)) !important;
+}
+
+/* Ensure popup content doesn't overlap with close button */
+.maplibregl-popup-content {
+  padding-right: 0 !important;
+  margin: 0 !important;
+}
+
+/* Modern scrollbar for popup content */
+.maplibregl-popup-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.maplibregl-popup-content::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.maplibregl-popup-content::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.maplibregl-popup-content::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Animation for popup appearance */
+.maplibregl-popup {
+  animation: popupFadeIn 0.2s ease-out !important;
+}
+
+@keyframes popupFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Legacy popup styles for backward compatibility */
 .custom-popup .maplibregl-popup-close-button {
   font-size: 20px !important;
   width: 30px !important;
