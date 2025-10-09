@@ -3319,57 +3319,19 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Area:</span>
-                <span className="font-medium">{carbonData.area} hectares</span>
+                <span className="font-medium">{carbonData.area.toFixed(2)} hectares</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Annual CO₂:</span>
                 <span className="font-medium text-green-600">
-                  {carbonData.annualCO2} tons/year
+                  {(carbonData.carbonSequestration / 1000).toFixed(1)} tons/year
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Lifetime CO₂:</span>
                 <span className="font-medium text-green-600">
-                  {carbonData.lifetimeCO2} tons
+                  {((carbonData.carbonSequestration * 20) / 1000).toFixed(1)} tons
                 </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Survival Rate:</span>
-                <span className="font-medium text-blue-600">
-                  {carbonData.survivalRate}%
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Biodiversity Score:</span>
-                <span className="font-medium text-purple-600">
-                  {carbonData.biodiversityScore}/100
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Temp Reduction:</span>
-                <span className="font-medium text-orange-600">
-                  {carbonData.temperatureReduction}%
-                </span>
-              </div>
-              <div className="pt-2 border-t">
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="flex justify-between">
-                    <span>Species:</span>
-                    <span>{carbonData.speciesCount}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Jobs Created:</span>
-                    <span>{carbonData.jobsCreated}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Economic Value:</span>
-                    <span>${carbonData.economicValue.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Student Satisfaction:</span>
-                    <span>+{carbonData.studentSatisfaction}%</span>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
