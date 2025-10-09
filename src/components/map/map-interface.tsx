@@ -1177,7 +1177,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     } else if (userOrg === 'urimpact') {
       // Urimpact organization - show Saudi Arabia boundary data and imported GeoJSON
       const layers = [
-        { id: 'admin-boundaries', name: 'Saudi Arabia Boundaries', type: 'admin-boundaries', visible: true, opacity: getOpacity('admin-boundaries', 0.8), color: getColor('admin-boundaries', '#3b82f6') },
+        { id: 'admin-boundaries', name: 'Saudi Arabia Boundaries', type: 'admin-boundaries', visible: true, opacity: getOpacity('admin-boundaries', 0.1), color: getColor('admin-boundaries', '#3b82f6') },
       ]
       
       // Check if we have planting areas data and if there are 7 or fewer features
@@ -1191,7 +1191,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
               name: zoneName,
               type: 'imported-geojson',
               visible: true,
-              opacity: getOpacity(`planting-area-${index}`, 0.7),
+              opacity: getOpacity(`planting-area-${index}`, 0.1),
               color: getColor(`planting-area-${index}`, feature.properties?.color || '#8b5cf6'),
               data: { type: 'FeatureCollection', features: [feature] } as any
             })
@@ -1203,7 +1203,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
             name: 'Planting Areas',
             type: 'imported-geojson',
             visible: true,
-            opacity: getOpacity('imported-geojson', 0.7),
+            opacity: getOpacity('imported-geojson', 0.1),
             color: getColor('imported-geojson', '#8b5cf6')
           })
         }
@@ -1257,10 +1257,10 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     } else {
       // For superadmin or unknown, check all data sources
       return territoriesLoading ||
-        currentLocationsLoading ||
-        potentialLocationsLoading ||
-        usStatesLoading ||
-        riversLoading ||
+    currentLocationsLoading ||
+    potentialLocationsLoading ||
+    usStatesLoading ||
+    riversLoading ||
         roadsLoading ||
         adminBoundariesLoading ||
         customerLocationsLoading
@@ -1292,12 +1292,12 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     } else if (userOrg === 'hooptrailer') {
       // For Hooptrailer users, check US-specific mutations and fetching
       return createTerritoryMutation.isPending ||
-        updateTerritoryMutation.isPending ||
-        deleteTerritoryMutation.isPending ||
-        createLocationMutation.isPending ||
-        updateLocationMutation.isPending ||
-        territoriesFetching ||
-        currentLocationsFetching ||
+    updateTerritoryMutation.isPending ||
+    deleteTerritoryMutation.isPending ||
+    createLocationMutation.isPending ||
+    updateLocationMutation.isPending ||
+    territoriesFetching ||
+    currentLocationsFetching ||
         potentialLocationsFetching
     } else {
       // For superadmin or unknown, check all mutations and fetching
@@ -1468,37 +1468,37 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         }
       } else {
         // For other users, use regular data sources
-        switch (layer.id) {
-          case 'territories':
-            data = territories as FeatureCollection || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
-            break
-          case 'current-locations':
-            data = (currentLocations as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
-            break
-          case 'potential-locations':
-            data = (potentialLocations as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
-            break
-          case 'us-states':
-            data = (usStates as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
-            break
-          case 'rivers':
-            data = (rivers as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
-            break
-          case 'roads':
-            data = (roads as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
-            break
-          case 'admin-boundaries':
-            data = (adminBoundaries as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
-            break
-          case 'customer-locations':
-            data = (customerLocations as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
-            break
-          case 'population-analysis':
-            data = populationAnalysisLayer || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
-            break
-          case 'expansion-analysis':
-            data = expansionAnalysisLayer || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
-            break
+      switch (layer.id) {
+        case 'territories':
+          data = territories as FeatureCollection || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+          break
+        case 'current-locations':
+          data = (currentLocations as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+          break
+        case 'potential-locations':
+          data = (potentialLocations as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+          break
+        case 'us-states':
+          data = (usStates as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+          break
+        case 'rivers':
+          data = (rivers as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+          break
+        case 'roads':
+          data = (roads as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+          break
+        case 'admin-boundaries':
+          data = (adminBoundaries as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+          break
+        case 'customer-locations':
+          data = (customerLocations as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+          break
+        case 'population-analysis':
+          data = populationAnalysisLayer || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+          break
+        case 'expansion-analysis':
+          data = expansionAnalysisLayer || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+          break
         }
       }
       return { ...layer, data, type: layer.type as MapLayer['type'] }
@@ -1565,11 +1565,11 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
       // For Jeddah users, try to fit to customer locations first
       if (!fitToCustomerLocations()) {
         // Fallback to Saudi Arabia center if no customer data
-        map.flyTo({
-          center: [45.0, 24.0], // Center of Saudi Arabia
-          zoom: 6,
-          duration: 1000,
-        })
+      map.flyTo({
+        center: [45.0, 24.0], // Center of Saudi Arabia
+        zoom: 6,
+        duration: 1000,
+      })
       }
     } else if (userOrg === 'urimpact') {
       // For Urimpact users, try to fit to planting areas first
@@ -1677,7 +1677,54 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
   const handleBasemapChange = (basemap: Basemap) => {
     const map = mapRef.current
     if (!map) return
+    
+    // Store tree data before style change
+    const treeSource = map.getSource('trees') as maplibregl.GeoJSONSource
+    const treeData = treeSource?.getData()
+    
     map.setStyle(basemap.style)
+    
+    // Re-add tree layer after style change
+    if (treeData && userOrg === 'urimpact') {
+      map.once('styledata', () => {
+        // Re-add tree source
+        if (!map.getSource('trees')) {
+          map.addSource('trees', {
+            type: 'geojson',
+            data: treeData
+          })
+        }
+        
+        // Re-add tree layer
+        if (!map.getLayer('trees')) {
+          if (map.hasImage('tree-icon')) {
+            map.addLayer({
+              id: 'trees',
+              type: 'symbol',
+              source: 'trees',
+              layout: {
+                'icon-image': 'tree-icon',
+                'icon-size': 0.5,
+                'icon-allow-overlap': true,
+                'icon-ignore-placement': true
+              }
+            })
+          } else {
+            map.addLayer({
+              id: 'trees',
+              type: 'circle',
+              source: 'trees',
+              paint: {
+                'circle-color': '#16a34a',
+                'circle-radius': 4,
+                'circle-stroke-color': '#16a34a',
+                'circle-stroke-width': 2
+              }
+            })
+          }
+        }
+      })
+    }
   }
 
   // Effect for initializing the drawing tool
@@ -1990,7 +2037,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
                 clusterRadius: 25    // Much smaller radius for less aggressive clustering
               })
             } else {
-              map.addSource(sourceId, { type: 'geojson', data: layer.data })
+            map.addSource(sourceId, { type: 'geojson', data: layer.data })
             }
           }
         } else {
@@ -2277,12 +2324,12 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         }
         
         // Update opacity and color for existing layers
-        if (map.getLayer(layer.id)) {
+      if (map.getLayer(layer.id)) {
             console.log(`🔧 Updating opacity for existing layer ${layer.id} to ${layer.opacity}`)
             if (layer.color) {
                 console.log(`🔧 Updating color for existing layer ${layer.id} to ${layer.color}`)
             }
-            const paint = map.getLayer(layer.id)?.paint
+        const paint = map.getLayer(layer.id)?.paint
             console.log(`🔍 Paint properties for ${layer.id}:`, paint)
             console.log(`🔍 Current opacity values:`, {
                 'fill-opacity': (paint as any)?.['fill-opacity'],
@@ -2292,14 +2339,14 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
             })
             
             if (paint) {
-                const opacityProps = ['fill-opacity', 'line-opacity', 'circle-opacity', 'circle-stroke-opacity']
+        const opacityProps = ['fill-opacity', 'line-opacity', 'circle-opacity', 'circle-stroke-opacity']
                 let foundProps = 0
-                opacityProps.forEach(prop => {
-                    if ((paint as any)[prop] !== undefined) {
+        opacityProps.forEach(prop => {
+          if ((paint as any)[prop] !== undefined) {
                         foundProps++
                         console.log(`🔧 Setting ${prop} to ${layer.opacity} for existing layer ${layer.id}`)
                         try {
-                            map.setPaintProperty(layer.id, prop, layer.opacity)
+            map.setPaintProperty(layer.id, prop, layer.opacity)
                             console.log(`✅ Successfully updated ${prop} to ${layer.opacity}`)
                         } catch (error) {
                             console.error(`❌ Error updating ${prop} for layer ${layer.id}:`, error)
@@ -2361,19 +2408,19 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
             }
         }
         
-        if (map.getLayer(`${layer.id}-outline`)) {
+      if (map.getLayer(`${layer.id}-outline`)) {
             console.log(`🔧 Updating opacity for existing outline layer ${layer.id}-outline to ${layer.opacity}`)
             if (layer.color) {
                 console.log(`🔧 Updating color for existing outline layer ${layer.id}-outline to ${layer.color}`)
             }
-            const paint = map.getLayer(`${layer.id}-outline`)?.paint
+        const paint = map.getLayer(`${layer.id}-outline`)?.paint
             console.log(`🔍 Paint properties for outline ${layer.id}-outline:`, paint)
-            
+        
             if (paint) {
-                if ((paint as any)['line-opacity'] !== undefined) {
+        if ((paint as any)['line-opacity'] !== undefined) {
                     console.log(`🔧 Setting line-opacity to ${layer.opacity} for existing outline layer ${layer.id}-outline`)
                     try {
-                        map.setPaintProperty(`${layer.id}-outline`, 'line-opacity', layer.opacity)
+          map.setPaintProperty(`${layer.id}-outline`, 'line-opacity', layer.opacity)
                         console.log(`✅ Successfully updated line-opacity to ${layer.opacity}`)
                     } catch (error: any) {
                         console.error(`❌ Error updating line-opacity for ${layer.id}-outline:`, error)
@@ -2817,23 +2864,23 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
       } else {
         // Use correct field name based on organization
         const geometryField = userOrg === 'jeddah' ? 'geometry' : 'geom'
-        updateTerritoryMutation.mutate({
-          id: originalId,
-          data: { 
+      updateTerritoryMutation.mutate({
+        id: originalId,
+        data: { 
             [geometryField]: featureToSave.geometry as Polygon | MultiPolygon,
-            updated_at: new Date().toISOString()
-          }
-        }, {
-          onSuccess: () => {
-            console.log('Territory saved successfully')
-            setIsSaving(false)
-            handleCancelEdit()
-          },
-          onError: (error) => {
-            console.error('Failed to save territory:', error)
-            setIsSaving(false)
-          }
-        })
+          updated_at: new Date().toISOString()
+        }
+      }, {
+        onSuccess: () => {
+          console.log('Territory saved successfully')
+          setIsSaving(false)
+          handleCancelEdit()
+        },
+        onError: (error) => {
+          console.error('Failed to save territory:', error)
+          setIsSaving(false)
+        }
+      })
       }
     } else if (featureType === 'location') {
       // Save location
@@ -2859,24 +2906,24 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
       } else {
         // Use correct field name based on organization
         const geometryField = userOrg === 'jeddah' ? 'geometry' : 'geom'
-        updateLocationMutation.mutate({
-          id: originalId,
-          data: { 
+      updateLocationMutation.mutate({
+        id: originalId,
+        data: { 
             [geometryField]: featureToSave.geometry as Point,
-            updated_at: new Date().toISOString()
-          },
-          type: featureToSave.properties?.locationType || 'current',
-        }, {
-          onSuccess: () => {
-            console.log('Location saved successfully')
-            setIsSaving(false)
-            handleCancelEdit()
-          },
-          onError: (error) => {
-            console.error('Failed to save location:', error)
-            setIsSaving(false)
-          }
-        })
+          updated_at: new Date().toISOString()
+        },
+        type: featureToSave.properties?.locationType || 'current',
+      }, {
+        onSuccess: () => {
+          console.log('Location saved successfully')
+          setIsSaving(false)
+          handleCancelEdit()
+        },
+        onError: (error) => {
+          console.error('Failed to save location:', error)
+          setIsSaving(false)
+        }
+      })
       }
     } else {
       console.error('Unknown geometry type for saving:', geometryType)
@@ -3166,7 +3213,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
             </div>
           </div>
         )}
-
+        
         {/* Editing mode indicator */}
         {isEditingMode && (
           <div className="absolute top-16 right-4 z-10 bg-blue-500 text-white px-3 py-2 rounded-lg shadow-lg animate-pulse">
@@ -3214,22 +3261,22 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
                     Cancel
                   </Button>
                   <div className="flex items-center gap-2">
-                    <Button
-                      onClick={handleSaveFeature}
-                      disabled={isSaving}
-                      className="bg-green-600 hover:bg-green-700 text-white px-4"
-                    >
-                      {isSaving ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          Save Changes
-                        </>
-                      )}
+                  <Button
+                    onClick={handleSaveFeature}
+                    disabled={isSaving}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4"
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Save Changes
+                      </>
+                    )}
                     </Button>
                     
                     {/* Three-dot menu for additional actions */}
@@ -3256,7 +3303,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                           <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
                         </svg>
-                      </Button>
+                  </Button>
                     </div>
                   </div>
                 </div>
@@ -3333,7 +3380,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
           showAllAdminBoundaries={showAllAdminBoundaries}
           onToggleAllAdminBoundaries={setShowAllAdminBoundaries}
         />
-        </div>
+      </div>
       )}
       <TerritoryFormModal
         isOpen={isTerritoryModalOpen}
@@ -3362,10 +3409,10 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
           userOrg={userOrg}
         />
       ) : (
-        <TerritoryGenerator
-          isOpen={isTerritoryGeneratorOpen}
-          onOpenChange={setIsTerritoryGeneratorOpen}
-          onTerritoriesGenerated={handleTerritoriesGenerated}
+      <TerritoryGenerator
+        isOpen={isTerritoryGeneratorOpen}
+        onOpenChange={setIsTerritoryGeneratorOpen}
+        onTerritoriesGenerated={handleTerritoriesGenerated}
         />
       )}
       
