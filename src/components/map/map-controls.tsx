@@ -130,14 +130,14 @@ export function MapControls({
             <CardDescription>Toggle layers to show or hide them.</CardDescription>
           </div>
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onHome}
-            >
-              <Home className="h-4 w-4 mr-1" />
-              Home
-            </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onHome}
+          >
+            <Home className="h-4 w-4 mr-1" />
+            Home
+          </Button>
           </div>
         </div>
       </CardHeader>

@@ -758,37 +758,44 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         const area = turf.area(feature)
         totalArea += area
         
-        // Generate trees based on area (1 tree per 100 square meters)
-        const treesPerHectare = 100 // 100 trees per hectare
-        const treesInArea = Math.floor((area / 10000) * treesPerHectare) // Convert to hectares
-        totalTrees += treesInArea
+        // Only show trees for the first area (Zone F) by default, or if explicitly toggled on
+        const shouldShowTrees = index === 0 || treeToggleStates[`area-${index}`]
         
-        console.log(`🌳 Area ${index + 1}: ${(area / 10000).toFixed(2)} hectares, ${treesInArea} trees`)
-
-        // Generate random points within the polygon
-        const bbox = turf.bbox(feature)
-        const attempts = treesInArea * 3 // Try 3x the number of trees to get good distribution
-        
-        let treesGenerated = 0
-        for (let i = 0; i < attempts && treesGenerated < treesInArea; i++) {
-          const randomPoint = turf.randomPoint(1, {
-            bbox: bbox
-          })
+        if (shouldShowTrees) {
+          // Generate trees based on area (1 tree per 100 square meters)
+          const treesPerHectare = 100 // 100 trees per hectare
+          const treesInArea = Math.floor((area / 10000) * treesPerHectare) // Convert to hectares
+          totalTrees += treesInArea
           
-          if (turf.booleanPointInPolygon(randomPoint.features[0], feature)) {
-            treeFeatures.push({
-              type: 'Feature',
-              geometry: randomPoint.features[0].geometry,
-              properties: {
-                id: `tree-${index}-${i}`,
-                zone: feature.properties?.zone_name || `Planting Area ${index + 1}`,
-                carbonPerYear: 22 // kg CO2 per tree per year
-              }
+          console.log(`🌳 Area ${index + 1}: ${(area / 10000).toFixed(2)} hectares, ${treesInArea} trees`)
+
+          // Generate random points within the polygon
+          const bbox = turf.bbox(feature)
+          const attempts = treesInArea * 3 // Try 3x the number of trees to get good distribution
+          
+          let treesGenerated = 0
+          for (let i = 0; i < attempts && treesGenerated < treesInArea; i++) {
+            const randomPoint = turf.randomPoint(1, {
+              bbox: bbox
             })
-            treesGenerated++
+            
+            if (turf.booleanPointInPolygon(randomPoint.features[0], feature)) {
+              treeFeatures.push({
+                type: 'Feature',
+                geometry: randomPoint.features[0].geometry,
+                properties: {
+                  id: `tree-${index}-${i}`,
+                  zone: feature.properties?.zone_name || `Planting Area ${index + 1}`,
+                  carbonPerYear: 22 // kg CO2 per tree per year
+                }
+              })
+              treesGenerated++
+            }
           }
+          console.log(`🌳 Generated ${treesGenerated} trees for area ${index + 1}`)
+        } else {
+          console.log(`🌳 Area ${index + 1}: Trees disabled (Phase ${index + 1})`)
         }
-        console.log(`🌳 Generated ${treesGenerated} trees for area ${index + 1}`)
       }
     })
 

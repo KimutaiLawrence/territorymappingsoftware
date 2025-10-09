@@ -52,7 +52,7 @@ export function Legend({ layers, userOrg }: LegendProps) {
     setVisibleLayers(filtered)
   }, [layers])
 
-  // For Urimpact, hardcode the zones to avoid duplication issues
+  // For Urimpact, show zones dynamically based on visible planting areas
   if (userOrg === 'urimpact') {
     const urimpactZones = [
       { name: 'Zone E - Experimental Desert', color: '#8b5cf6', opacity: 0.7 },
@@ -63,6 +63,13 @@ export function Legend({ layers, userOrg }: LegendProps) {
       { name: 'Zone C - Salt Tolerant', color: '#8b5cf6', opacity: 0.7 },
       { name: 'Zone D - Wind Break', color: '#06b6d4', opacity: 0.7 }
     ]
+    
+    // Filter zones based on visible planting area layers
+    const visiblePlantingAreas = visibleLayers.filter(l => l.id.startsWith('planting-area-'))
+    const visibleZones = urimpactZones.filter((_, index) => {
+      const plantingAreaLayer = visiblePlantingAreas[index]
+      return plantingAreaLayer && plantingAreaLayer.visible
+    })
     
     return (
       <div className="absolute bottom-[80px] right-4 z-10 w-48">
@@ -81,21 +88,23 @@ export function Legend({ layers, userOrg }: LegendProps) {
               </div>
             )}
             
-            {/* Urimpact Zones */}
-            <div className="space-y-1">
-              {urimpactZones.map((zone, index) => (
-                <div key={index} className="flex items-center space-x-2">
-                  <div
-                    className="w-3 h-3 rounded border"
-                    style={{ 
-                      backgroundColor: zone.color,
-                      opacity: zone.opacity
-                    }}
-                  />
-                  <span className="text-xs">{zone.name}</span>
-                </div>
-              ))}
-            </div>
+            {/* Urimpact Zones - Only show if planting areas are visible */}
+            {visibleZones.length > 0 && (
+              <div className="space-y-1">
+                {visibleZones.map((zone, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <div
+                      className="w-3 h-3 rounded border"
+                      style={{ 
+                        backgroundColor: zone.color,
+                        opacity: zone.opacity
+                      }}
+                    />
+                    <span className="text-xs">{zone.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
