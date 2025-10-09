@@ -3066,7 +3066,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         {/* Map Title - Draggable and Centered */}
         <div 
           className={cn(
-            "absolute z-20 bg-white/95 backdrop-blur-md px-8 py-4 rounded-2xl shadow-2xl border-2 border-white/20 select-none hover:shadow-3xl transition-all duration-300",
+            "absolute z-20 bg-white/95 backdrop-blur-md px-6 py-2 rounded-xl shadow-2xl border-2 border-white/20 select-none hover:shadow-3xl transition-all duration-300",
             isEditingTitle ? "cursor-text ring-2 ring-blue-500/50" : "cursor-move hover:scale-105"
           )}
           style={{
@@ -3086,14 +3086,14 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
                 onChange={(e) => setMapTitle(e.target.value)}
                 onKeyDown={handleTitleKeyDown}
                 onBlur={handleTitleBlur}
-                className="bg-transparent border-none outline-none text-2xl font-bold text-center min-w-0 flex-1 placeholder:text-gray-400 focus:placeholder:text-gray-300 text-gray-800"
+                className="bg-transparent border-none outline-none text-xl font-bold text-center min-w-0 flex-1 placeholder:text-gray-400 focus:placeholder:text-gray-300 text-gray-800"
                 placeholder="Enter map title"
                 style={{ minWidth: '400px', fontFamily: 'Inter, system-ui, sans-serif' }}
                 autoFocus
               />
             ) : (
               <div 
-                className="text-2xl font-bold text-center min-w-0 flex-1 cursor-pointer hover:text-blue-600 transition-colors text-gray-800"
+                className="text-xl font-bold text-center min-w-0 flex-1 cursor-pointer hover:text-blue-600 transition-colors text-gray-800"
                 style={{ minWidth: '400px', fontFamily: 'Inter, system-ui, sans-serif' }}
                 onDoubleClick={handleTitleDoubleClick}
               >
