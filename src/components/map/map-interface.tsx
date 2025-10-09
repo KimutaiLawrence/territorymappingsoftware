@@ -1278,14 +1278,14 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     if (userOrg === 'jeddah') {
       // Jeddah organization - show only Saudi Arabia data
       return [
-        { id: 'territories', name: 'Territories', type: 'territories', visible: true, opacity: getOpacity('territories', 0.5), color: getColor('territories', '#3b82f6'), data: { type: 'FeatureCollection', features: [] } },
-        { id: 'admin-boundaries', name: 'Administrative Boundaries', type: 'admin-boundaries', visible: true, opacity: getOpacity('admin-boundaries', 0.1), color: getColor('admin-boundaries', '#3b82f6'), data: { type: 'FeatureCollection', features: [] } },
-        { id: 'customer-locations', name: 'Customer Locations', type: 'customer-locations', visible: true, opacity: getOpacity('customer-locations', 1), color: getColor('customer-locations', '#ef4444'), data: { type: 'FeatureCollection', features: [] } },
+        { id: 'territories', name: 'Territories', type: 'territories' as const, visible: true, opacity: getOpacity('territories', 0.5), color: getColor('territories', '#3b82f6'), data: { type: 'FeatureCollection', features: [] } },
+        { id: 'admin-boundaries', name: 'Administrative Boundaries', type: 'admin-boundaries' as const, visible: true, opacity: getOpacity('admin-boundaries', 0.1), color: getColor('admin-boundaries', '#3b82f6'), data: { type: 'FeatureCollection', features: [] } },
+        { id: 'customer-locations', name: 'Customer Locations', type: 'customer-locations' as const, visible: true, opacity: getOpacity('customer-locations', 1), color: getColor('customer-locations', '#ef4444'), data: { type: 'FeatureCollection', features: [] } },
       ]
     } else if (userOrg === 'urimpact') {
       // Urimpact organization - show Saudi Arabia boundary data and imported GeoJSON
       const layers = [
-        { id: 'admin-boundaries', name: 'Saudi Arabia Boundaries', type: 'admin-boundaries', visible: true, opacity: getOpacity('admin-boundaries', 0.1), color: getColor('admin-boundaries', '#3b82f6'), data: { type: 'FeatureCollection', features: [] } },
+        { id: 'admin-boundaries', name: 'Saudi Arabia Boundaries', type: 'admin-boundaries' as const, visible: true, opacity: getOpacity('admin-boundaries', 0.1), color: getColor('admin-boundaries', '#3b82f6'), data: { type: 'FeatureCollection', features: [] } },
       ]
       
       // Use planting areas data from React Query hook or fallback to state
@@ -1301,11 +1301,11 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
             layers.push({
               id: `planting-area-${index}`,
               name: zoneName,
-              type: 'imported-geojson',
+              type: 'imported-geojson' as const,
               visible: true,
               opacity: getOpacity(`planting-area-${index}`, 0.1),
               color: getColor(`planting-area-${index}`, feature.properties?.color || '#8b5cf6'),
-              data: { type: 'FeatureCollection', features: [feature] } as FeatureCollection
+              data: { type: 'FeatureCollection', features: [feature] }
             })
           })
         } else {
