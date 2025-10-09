@@ -826,13 +826,19 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
   // Load map.geojson data for Urimpact users
   useEffect(() => {
     if (userOrg === 'urimpact' && !urimpactImportedGeoJSON) {
+      console.log('🌱 Loading Urimpact map.geojson data...')
       // Load the map.geojson data
       fetch('/api/urimpact/map-geojson')
-        .then(response => response.json())
+        .then(response => {
+          console.log('🌱 Map.geojson response status:', response.status)
+          return response.json()
+        })
         .then(data => {
+          console.log('🌱 Map.geojson raw data:', data)
           if (data && data.type === 'FeatureCollection') {
             setUrimpactImportedGeoJSON(data)
             console.log('✅ Loaded Urimpact map.geojson data:', data)
+            console.log('✅ Features count:', data.features.length)
             
             // Load tree icon and generate tree distribution
             console.log('🌳 Loading tree icon and generating distribution...')
@@ -1940,9 +1946,18 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     if (!map || !isMapLoaded) return
 
     const addDataLayers = () => {
+      console.log('🔍 addDataLayers called with layers:', layers.map(l => ({ id: l.id, type: l.type, visible: l.visible, dataLength: l.data?.features?.length || 0 })))
       layers.forEach(layer => {
         const sourceId = `${layer.id}-source`
         const source = map.getSource(sourceId) as maplibregl.GeoJSONSource
+
+        console.log(`🔍 Processing layer ${layer.id}:`, {
+          hasSource: !!source,
+          hasData: !!(layer.data && layer.data.features.length > 0),
+          dataLength: layer.data?.features?.length || 0,
+          visible: layer.visible,
+          type: layer.type
+        })
 
         if (!source) {
           if (layer.data && layer.data.features.length > 0) {
@@ -2200,7 +2215,10 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
             } else if (layer.type === 'roads') {
                 map.addLayer({ id: layer.id, type: 'line', source: sourceId, paint: { 'line-color': layer.color || '#6b7280', 'line-width': 1, 'line-opacity': layer.opacity } })
             } else if (layer.type === 'imported-geojson') {
-                console.log(`Creating imported-geojson layer with opacity: ${layer.opacity}, color: ${layer.color}`)
+                console.log(`🌱 Creating imported-geojson layer ${layer.id} with opacity: ${layer.opacity}, color: ${layer.color}`)
+                console.log(`🌱 Layer data:`, layer.data)
+                console.log(`🌱 Source ID: ${sourceId}`)
+                
                 // Create fill layer for polygons
                 map.addLayer({ 
                     id: layer.id, 
@@ -2216,6 +2234,8 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
                         'fill-opacity': layer.opacity 
                     } 
                 })
+                console.log(`🌱 Created fill layer: ${layer.id}`)
+                
                 // Create outline layer
                 map.addLayer({ 
                     id: `${layer.id}-outline`, 
@@ -2232,6 +2252,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
                         'line-opacity': layer.opacity 
                     } 
                 })
+                console.log(`🌱 Created outline layer: ${layer.id}-outline`)
                 console.log(`✅ Created imported-geojson layer with individual colors`)
             }
         }
