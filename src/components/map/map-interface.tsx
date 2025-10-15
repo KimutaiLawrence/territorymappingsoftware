@@ -2630,6 +2630,33 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     // Initial data load
     if (map.isStyleLoaded()) {
       addDataLayers()
+      
+      // Final check: Ensure current locations are on top of territories
+      setTimeout(() => {
+        const currentLocationsLayer = map.getLayer('current-locations')
+        const territoriesLayer = map.getLayer('territories')
+        
+        if (currentLocationsLayer && territoriesLayer) {
+          console.log('🔧 Final z-index check: Current locations should be on top of territories')
+          console.log('🔧 Current layer order:', map.getStyle().layers?.map(l => l.id).slice(-10))
+          
+          // Check if current-locations appears after territories in the layer list
+          const layerIds = map.getStyle().layers?.map(l => l.id) || []
+          const currentLocationsIndex = layerIds.indexOf('current-locations')
+          const territoriesIndex = layerIds.indexOf('territories')
+          
+          if (currentLocationsIndex !== -1 && territoriesIndex !== -1) {
+            if (currentLocationsIndex < territoriesIndex) {
+              console.log('⚠️ Current locations are behind territories! Moving to front...')
+              // Move current locations to the front
+              map.moveLayer('current-locations')
+              console.log('✅ Current locations moved to front')
+            } else {
+              console.log('✅ Current locations are correctly positioned on top of territories')
+            }
+          }
+        }
+      }, 100) // Small delay to ensure all layers are processed
     }
 
     return () => {
