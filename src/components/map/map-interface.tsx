@@ -1247,9 +1247,12 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     
     if (userOrg === 'jeddah') {
       // Jeddah organization - show only Saudi Arabia data
+      // Order: Background layers first, then point layers on top
       return [
-        { id: 'territories', name: 'Territories', type: 'territories' as const, visible: true, opacity: getOpacity('territories', 0.5), color: getColor('territories', '#3b82f6'), data: { type: 'FeatureCollection', features: [] } },
+        // Background/area layers (lowest z-index)
         { id: 'admin-boundaries', name: 'Administrative Boundaries', type: 'admin-boundaries' as const, visible: true, opacity: getOpacity('admin-boundaries', 0.1), color: getColor('admin-boundaries', '#3b82f6'), data: { type: 'FeatureCollection', features: [] } },
+        { id: 'territories', name: 'Territories', type: 'territories' as const, visible: true, opacity: getOpacity('territories', 0.5), color: getColor('territories', '#3b82f6'), data: { type: 'FeatureCollection', features: [] } },
+        // Point layers (highest z-index) - always on top
         { id: 'customer-locations', name: 'Customer Locations', type: 'customer-locations' as const, visible: true, opacity: getOpacity('customer-locations', 1), color: getColor('customer-locations', '#ef4444'), data: { type: 'FeatureCollection', features: [] } },
       ]
     } else if (userOrg === 'urimpact') {
@@ -1297,27 +1300,35 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
       return layers
     } else if (userOrg === 'hooptrailer') {
       // Hooptrailer organization - show only US data
+      // Order: Background layers first, then point layers on top
       return [
+        // Background/area layers (lowest z-index)
+        { id: 'us-states', name: 'US States', type: 'us-states', visible: true, opacity: getOpacity('us-states', 0.2), color: getColor('us-states', '#8b5cf6'), data: { type: 'FeatureCollection', features: [] } },
         { id: 'territories', name: 'Territories', type: 'territories', visible: true, opacity: getOpacity('territories', 0.5), color: getColor('territories', '#3b82f6'), data: { type: 'FeatureCollection', features: [] } },
+        { id: 'rivers', name: 'Rivers', type: 'rivers', visible: false, opacity: getOpacity('rivers', 1), color: getColor('rivers', '#06b6d4'), data: { type: 'FeatureCollection', features: [] } },
+        // Point layers (highest z-index) - always on top
         { id: 'current-locations', name: 'Current Locations', type: 'current-locations', visible: true, opacity: getOpacity('current-locations', 1), color: getColor('current-locations', '#22c55e'), data: { type: 'FeatureCollection', features: [] } },
         { id: 'potential-locations', name: 'Potential Locations', type: 'potential-locations', visible: true, opacity: getOpacity('potential-locations', 1), color: getColor('potential-locations', '#f59e0b'), data: { type: 'FeatureCollection', features: [] } },
-        { id: 'us-states', name: 'US States', type: 'us-states', visible: true, opacity: getOpacity('us-states', 0.2), color: getColor('us-states', '#8b5cf6'), data: { type: 'FeatureCollection', features: [] } },
-        { id: 'rivers', name: 'Rivers', type: 'rivers', visible: false, opacity: getOpacity('rivers', 1), color: getColor('rivers', '#06b6d4'), data: { type: 'FeatureCollection', features: [] } },
+        // Analysis layers (on top of everything)
         { id: 'population-analysis', name: 'Population Analysis', type: 'population-analysis', visible: false, opacity: getOpacity('population-analysis', 0.7), color: getColor('population-analysis', '#ec4899'), data: { type: 'FeatureCollection', features: [] } },
         { id: 'expansion-analysis', name: 'Expansion Analysis', type: 'expansion-analysis', visible: false, opacity: getOpacity('expansion-analysis', 0.7), color: getColor('expansion-analysis', '#f43f5e'), data: { type: 'FeatureCollection', features: [] } },
       ]
     } else {
       // Superadmin or unknown - show all layers
+      // Order: Background layers first, then point layers on top
       return [
-        { id: 'territories', name: 'Territories', type: 'territories', visible: true, opacity: getOpacity('territories', 0.5), color: getColor('territories', '#3b82f6') },
-        { id: 'current-locations', name: 'Current Locations', type: 'current-locations', visible: true, opacity: getOpacity('current-locations', 1), color: getColor('current-locations', '#22c55e') },
-        { id: 'potential-locations', name: 'Potential Locations', type: 'potential-locations', visible: true, opacity: getOpacity('potential-locations', 1), color: getColor('potential-locations', '#f59e0b') },
+        // Background/area layers (lowest z-index)
         { id: 'us-states', name: 'US States', type: 'us-states', visible: true, opacity: getOpacity('us-states', 0.2), color: getColor('us-states', '#8b5cf6') },
         { id: 'admin-boundaries', name: 'Administrative Boundaries', type: 'admin-boundaries', visible: true, opacity: getOpacity('admin-boundaries', 0.6), color: getColor('admin-boundaries', '#3b82f6') },
+        { id: 'territories', name: 'Territories', type: 'territories', visible: true, opacity: getOpacity('territories', 0.5), color: getColor('territories', '#3b82f6') },
+        { id: 'rivers', name: 'Rivers', type: 'rivers', visible: false, opacity: getOpacity('rivers', 1), color: getColor('rivers', '#06b6d4') },
+        // Point layers (highest z-index) - always on top
+        { id: 'current-locations', name: 'Current Locations', type: 'current-locations', visible: true, opacity: getOpacity('current-locations', 1), color: getColor('current-locations', '#22c55e') },
+        { id: 'potential-locations', name: 'Potential Locations', type: 'potential-locations', visible: true, opacity: getOpacity('potential-locations', 1), color: getColor('potential-locations', '#f59e0b') },
         { id: 'customer-locations', name: 'Customer Locations', type: 'customer-locations', visible: true, opacity: getOpacity('customer-locations', 1), color: getColor('customer-locations', '#ef4444') },
+        // Analysis layers (on top of everything)
         { id: 'population-analysis', name: 'Population Analysis', type: 'population-analysis', visible: false, opacity: getOpacity('population-analysis', 0.7), color: getColor('population-analysis', '#ec4899') },
         { id: 'expansion-analysis', name: 'Expansion Analysis', type: 'expansion-analysis', visible: false, opacity: getOpacity('expansion-analysis', 0.7), color: getColor('expansion-analysis', '#f43f5e') },
-        { id: 'rivers', name: 'Rivers', type: 'rivers', visible: false, opacity: getOpacity('rivers', 1), color: getColor('rivers', '#06b6d4') },
       ]
     }
   }, [user?.organization?.name, layerOpacitySettings, plantingAreasData, urimpactImportedGeoJSON])
