@@ -171,6 +171,7 @@ export function useOrganizationDeleteLocation() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['locations'] })
+      queryClient.invalidateQueries({ queryKey: ['organization-locations'] })
       queryClient.invalidateQueries({ queryKey: ['map-current-locations'] })
       queryClient.invalidateQueries({ queryKey: ['map-potential-locations'] })
       queryClient.invalidateQueries({ queryKey: ['map-customer-locations'] })

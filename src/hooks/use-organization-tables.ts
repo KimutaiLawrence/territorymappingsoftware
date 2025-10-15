@@ -250,7 +250,11 @@ export function useOrganizationDeleteLocation() {
       return api.delete(endpoint)
     },
     onSuccess: () => {
+      // Invalidate all organization-locations queries (with any pagination/userOrg)
       queryClient.invalidateQueries({ queryKey: ['organization-locations'] })
+      // Also invalidate map queries to update the map
+      queryClient.invalidateQueries({ queryKey: ['map-current-locations'] })
+      queryClient.invalidateQueries({ queryKey: ['map-customer-locations'] })
     },
   })
 }
