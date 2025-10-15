@@ -2136,7 +2136,13 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         return getLayerPriority(a.type) - getLayerPriority(b.type)
       })
       
-      console.log('🔍 Processing layers in z-index order:', orderedLayers.map(l => ({ id: l.id, type: l.type, priority: l.type === 'current-locations' ? 10 : l.type === 'territories' ? 3 : 5 })))
+      console.log('🔍 Processing layers in z-index order:', orderedLayers.map(l => ({ 
+        id: l.id, 
+        type: l.type, 
+        priority: l.type === 'current-locations' ? 10 : l.type === 'territories' ? 3 : 5,
+        hasData: !!(l.data && l.data.features.length > 0),
+        dataLength: l.data?.features?.length || 0
+      })))
       
       orderedLayers.forEach(layer => {
         const sourceId = `${layer.id}-source`
@@ -2236,6 +2242,9 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
                 console.log('ℹ️ Skipping territory labels due to map style limitations')
             } else if (layer.type === 'current-locations') {
                 // Ensure current locations appear on top of territories by adding them at the top
+                console.log(`🔧 Creating current-locations layer with priority 10 (should be on top)`)
+                console.log(`🔧 Current map layers before adding current-locations:`, map.getStyle().layers?.map(l => l.id).slice(-10))
+                
                 map.addLayer({ 
                     id: layer.id, 
                     type: 'circle', 
@@ -2249,7 +2258,9 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
                         'circle-stroke-opacity': layer.opacity 
                     }
                 })
+                
                 console.log(`✅ Current locations layer added on top of territories`)
+                console.log(`🔧 Current map layers after adding current-locations:`, map.getStyle().layers?.map(l => l.id).slice(-10))
             } else if (layer.type === 'potential-locations') {
                 map.addLayer({ id: layer.id, type: 'circle', source: sourceId, paint: { 'circle-radius': 6, 'circle-color': layer.color || '#f59e0b', 'circle-stroke-width': 2, 'circle-stroke-color': '#ffffff', 'circle-opacity': layer.opacity, 'circle-stroke-opacity': layer.opacity } })
             } else if (layer.type === 'us-states') {
