@@ -195,6 +195,10 @@ const transformTerritoriesToGeoJSON = (territories: Territory[]): FeatureCollect
             name: territory.name,
             description: territory.description,
             color: territory.color || '#3b82f6',
+            opacity: territory.properties?.opacity || 0.7,
+            is_visible: territory.properties?.is_visible !== false, // Default to true if not specified
+            stroke_color: territory.properties?.stroke_color || '#ffffff',
+            stroke_width: territory.properties?.stroke_width || 2.0
           },
   })),
 })
@@ -554,7 +558,17 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
   } = useMapPotentialLocations()
 
   const territories = useMemo(() => {
-    if (!territoriesData || !(territoriesData as FeatureCollection).features) return null
+    console.log('🔍 Processing territories data:', {
+      territoriesData,
+      hasData: !!territoriesData,
+      type: territoriesData?.type,
+      features: territoriesData?.features?.length || 0
+    })
+    
+    if (!territoriesData || !(territoriesData as FeatureCollection).features) {
+      console.log('❌ No territories data or features found')
+      return null
+    }
     
     // Debug logging
     console.log('🔍 TerritoriesData received:', {
@@ -565,21 +579,30 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     })
     
     if ((territoriesData as FeatureCollection).type === 'FeatureCollection') {
-      return {
+      const processedTerritories = {
         ...territoriesData,
         features: (territoriesData as FeatureCollection).features.map((f: Feature) => ({
           ...f,
           properties: {
             ...f.properties,
-            color: f.properties?.color || '#3b82f6'
+            color: f.properties?.color || '#3b82f6',
+            opacity: f.properties?.opacity || 0.7,
+            is_visible: f.properties?.is_visible !== false, // Default to true if not specified
+            stroke_color: f.properties?.stroke_color || '#ffffff',
+            stroke_width: f.properties?.stroke_width || 2.0
           }
         }))
       }
+      console.log('✅ Processed territories:', processedTerritories)
+      return processedTerritories
     }
     // Handle case where territoriesData might be an object with territories property
     if ((territoriesData as any).territories) {
-      return transformTerritoriesToGeoJSON((territoriesData as any).territories)
+      const transformed = transformTerritoriesToGeoJSON((territoriesData as any).territories)
+      console.log('✅ Transformed territories:', transformed)
+      return transformed
     }
+    console.log('❌ No valid territories format found')
     return null
   }, [territoriesData])
 
@@ -1530,9 +1553,19 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         }
       } else {
         // For other users, use regular data sources
-      switch (layer.id) {
+        console.log(`🔧 Loading data for layer: ${layer.id} (userOrg: ${userOrg})`)
+        switch (layer.id) {
         case 'territories':
+          console.log('🔧 Assigning territories data:', {
+            hasTerritories: !!territories,
+            territoriesType: territories?.type,
+            territoriesFeatures: territories?.features?.length || 0
+          })
           data = territories as FeatureCollection || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
+          console.log('🔧 Final territories data assigned:', {
+            type: data.type,
+            featuresCount: data.features.length
+          })
           break
         case 'current-locations':
           data = (currentLocations as FeatureCollection) || ({ type: 'FeatureCollection', features: [] } as FeatureCollection)
