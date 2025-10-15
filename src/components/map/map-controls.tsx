@@ -161,9 +161,8 @@ export function MapControls({
             </div>
             {layer.visible && (
               <>
-                {/* Standard layer controls for non-territory layers */}
-                {layer.type !== 'territories' && (
-                  <div className="flex items-center space-x-3 pl-8 py-1">
+                {/* Standard layer controls for all layers */}
+                <div className="flex items-center space-x-3 pl-8 py-1">
                     {/* Color Box */}
                     <ColorPicker
                       value={layer.color || '#3b82f6'}
@@ -213,15 +212,14 @@ export function MapControls({
                         <SaveIcon size={12} className="text-muted-foreground hover:text-foreground" />
                       )}
                     </Button>
-                  </div>
-                )}
+                </div>
 
                 {/* Individual territory controls for territories layer - Smart display logic */}
                 {layer.type === 'territories' && layer.data?.features && (() => {
                   const territoryCount = layer.data.features.length
                   const maxIndividualTerritories = 7
                   
-                  // Only show individual controls if 7 or fewer territories, otherwise show default layer controls
+                  // Show individual controls if 7 or fewer territories, otherwise show default layer controls
                   if (territoryCount <= maxIndividualTerritories) {
                     return (
                       <div className="pl-8 space-y-1">
