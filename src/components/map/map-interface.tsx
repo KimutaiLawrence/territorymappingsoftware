@@ -52,7 +52,7 @@ import {
 import { useLayerOpacitySettings } from '@/hooks/use-layer-opacity'
 import { useMapTitle, useSaveMapTitle } from '@/hooks/use-map-title'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
+import { cn, debounce } from '@/lib/utils'
 import { PrintComposer } from './print-composer'
 import { exportMapAsPDF } from '@/lib/pdf-export'
 import { useQueryClient, useQuery, useMutation } from '@tanstack/react-query'
@@ -2834,6 +2834,34 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
     }
   }
 
+  // Debounced save function for territory color changes
+  const saveTerritoryColor = useCallback(
+    debounce(async (territoryId: string, color: string) => {
+      try {
+        console.log(`💾 Saving territory ${territoryId} color to database: ${color}`)
+        
+        // Determine the correct API endpoint based on organization
+        const endpoint = userOrg === 'jeddah' 
+          ? `/api/jeddah/territories/${territoryId}/style`
+          : `/api/territories/${territoryId}/style`
+        
+        const response = await api.put(endpoint, {
+          color,
+          stroke_color: color, // Use same color for stroke
+          stroke_width: 2.0,
+          is_visible: true
+        })
+        
+        if (response.data.success) {
+          console.log(`✅ Territory ${territoryId} color saved successfully`)
+        }
+      } catch (error) {
+        console.error(`❌ Failed to save territory ${territoryId} color:`, error)
+      }
+    }, 1000), // 1 second debounce
+    [userOrg]
+  )
+
   // New handler for individual territory color changes with live preview
   const handleTerritoryColorChange = (territoryId: string, color: string) => {
     console.log(`🔧 Individual territory color change: ${territoryId} -> ${color}`)
@@ -2858,7 +2886,55 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         }
       }
     }
+    
+    // Also update the layers state for consistency
+    setLayersConfigState(prevLayers => 
+      prevLayers.map(layer => 
+        layer.type === 'territories' 
+          ? {
+              ...layer,
+              data: {
+                ...layer.data,
+                features: layer.data.features.map((f: any) => 
+                  f.id === territoryId 
+                    ? { ...f, properties: { ...f.properties, color } }
+                    : f
+                )
+              }
+            }
+          : layer
+      )
+    )
+    
+    // Save to database with debounce
+    saveTerritoryColor(territoryId, color)
   }
+
+  // Debounced save function for territory opacity changes
+  const saveTerritoryOpacity = useCallback(
+    debounce(async (territoryId: string, opacity: number) => {
+      try {
+        console.log(`💾 Saving territory ${territoryId} opacity to database: ${opacity}`)
+        
+        // Determine the correct API endpoint based on organization
+        const endpoint = userOrg === 'jeddah' 
+          ? `/api/jeddah/territories/${territoryId}/style`
+          : `/api/territories/${territoryId}/style`
+        
+        const response = await api.put(endpoint, {
+          opacity,
+          is_visible: true
+        })
+        
+        if (response.data.success) {
+          console.log(`✅ Territory ${territoryId} opacity saved successfully`)
+        }
+      } catch (error) {
+        console.error(`❌ Failed to save territory ${territoryId} opacity:`, error)
+      }
+    }, 1000), // 1 second debounce
+    [userOrg]
+  )
 
   const handleTerritoryOpacityChange = (territoryId: string, opacity: number) => {
     console.log(`🔧 Individual territory opacity change: ${territoryId} -> ${opacity}`)
@@ -2903,6 +2979,9 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
         }
       }
     })
+    
+    // Save to database with debounce
+    saveTerritoryOpacity(territoryId, opacity)
   }
 
   // Panel resize handlers
