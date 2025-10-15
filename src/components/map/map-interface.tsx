@@ -3541,6 +3541,7 @@ export function MapInterface({ onTerritoryCreate, onLocationCreate }: MapInterfa
             </DrawerTrigger>
             <DrawerContent>
               <div className="p-4">
+                <div className="sr-only" role="heading" aria-level={2}>Map Controls</div>
                 <MapControls
           layers={layers}
                   onLayerToggle={handleLayerToggle}
